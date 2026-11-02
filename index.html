@@ -3,697 +3,414 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Nifty 50 index aur Nifty 50 stocks ka daily scan, NSE timings, setups aur position-size calculator.">
-<title>Nifty 50 Day Trader</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Nifty 50 scanner: har share ka setup, chart aur levels, roz apne aap update.">
+<title>Nifty 50 Scanner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600;700&display=swap">
 <style>
-/* Layout: a trading-desk notebook. One live day-bar at the top, then a grid of chart cards, then the "how" in pictures. */
+/* Layout: a scanner terminal. Index strip on top, one dense list of 50 rows; a row opens a detail sheet. */
 :root {
-  --paper: #F4F6F9;
-  --card: #FFFFFF;
-  --ink: #15213A;
-  --muted: #5A6479;
-  --line: #DCE1E9;
-  --accent: #D9730D;
-  --accent-soft: #FBEBD9;
-  --up: #12804F;
-  --up-soft: #DDF2E7;
-  --down: #C2362B;
-  --down-soft: #F8E1DE;
-  --band: #E9EDF3;
+  --paper: #F4F6F9; --card: #FFFFFF; --ink: #15213A; --muted: #5A6479; --line: #DCE1E9;
+  --accent: #D9730D; --accent-soft: #FBEBD9; --up: #12804F; --up-soft: #DDF2E7;
+  --down: #C2362B; --down-soft: #F8E1DE; --band: #E9EDF3; --hover: #EEF2F8;
   --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+@media (prefers-color-scheme: dark) { :root {
   --paper: #0D1320; --card: #151D2D; --ink: #E7EAF1; --muted: #98A2B6; --line: #283248;
-  --accent: #F2A24A; --accent-soft: #3A2A18; --up: #3FC78C; --up-soft: #15302A; --down: #F06D61; --down-soft: #3A1E1E;
-  --band: #1B2436; color-scheme: dark } }
-:root[data-theme="dark"] {
-  --paper: #0D1320; --card: #151D2D; --ink: #E7EAF1; --muted: #98A2B6; --line: #283248;
-  --accent: #F2A24A; --accent-soft: #3A2A18; --up: #3FC78C; --up-soft: #15302A; --down: #F06D61; --down-soft: #3A1E1E;
-  --band: #1B2436; color-scheme: dark }
-
+  --accent: #F2A24A; --accent-soft: #3A2A18; --up: #3FC78C; --up-soft: #15302A;
+  --down: #F06D61; --down-soft: #3A1E1E; --band: #1B2436; --hover: #1C2537; color-scheme: dark } }
 * { box-sizing: border-box }
-body { background: var(--paper); color: var(--ink); font: 16px/1.55 var(--body); }
-.wrap { max-width: 1120px; margin: 0 auto; padding-block: 28px 56px;
+html { -webkit-text-size-adjust: 100% }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--body) }
+[hidden] { display: none !important }
+a { color: var(--accent) }
+button { font: inherit; color: inherit }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 18px 48px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-  display: grid; gap: 56px }
-h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.1 }
-h1 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 800; letter-spacing: -0.02em }
-h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); font-weight: 700 }
-h3 { font-size: 1.05rem; font-weight: 700 }
+  display: grid; gap: 18px }
+h1, h2 { font-family: var(--display); margin: 0; line-height: 1.1; text-wrap: balance }
+h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 800; letter-spacing: -.01em }
+h2 { font-size: clamp(1.3rem, 3vw, 1.7rem); font-weight: 800 }
 p { margin: 0 }
-.lede { color: var(--muted); max-width: 60ch }
-.eyebrow { font: 600 .72rem/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent) }
-.mono { font-family: var(--mono) }
-.num { font-variant-numeric: tabular-nums }
-section { display: grid; gap: 20px; min-width: 0 }
-.head { display: grid; gap: 8px }
+.mono, .num { font-family: var(--mono); font-variant-numeric: tabular-nums }
+.muted { color: var(--muted) }
+.up { color: var(--up) } .down { color: var(--down) }
 
-/* ---------- top: status + day bar */
-.top { display: grid; gap: 22px }
-.status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px }
-.pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
-  font: 700 .85rem/1 var(--mono); letter-spacing: .04em }
-.pill .dot { width: 9px; height: 9px; border-radius: 50% ; background: currentColor }
+/* top bar */
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px }
+.brand { display: grid; gap: 2px }
+.brand small { color: var(--muted); font-size: .82rem }
+.status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: .85rem }
+.pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 999px; font: 700 .76rem/1 var(--mono); letter-spacing: .04em }
+.pill i { width: 8px; height: 8px; border-radius: 50%; background: currentColor }
 .pill.open { background: var(--up-soft); color: var(--up) }
-.pill.open .dot { animation: pulse 1.6s infinite }
 .pill.closed { background: var(--down-soft); color: var(--down) }
-@keyframes pulse { 50% { opacity: .3 } }
-@media (prefers-reduced-motion: reduce) { .pill.open .dot { animation: none } }
-.clock { font: 600 1.05rem var(--mono) }
-.status .note { color: var(--muted) }
+.guide { font-weight: 700; text-decoration: none; border: 1px solid var(--line); background: var(--card); padding: 6px 12px; border-radius: 8px; color: var(--ink) }
 
-.daybar { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 18px 14px; min-width: 0 }
-.daybar-scroll { overflow-x: auto }
-.daybar svg { display: block; width: 100%; min-width: 620px; height: auto }
-.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; font-size: .85rem; color: var(--muted) }
-.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px }
+/* index strip */
+.idx { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center;
+  background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 12px;
+  padding: 12px 14px; cursor: pointer; text-align: left; width: 100% }
+.idx:hover { background: var(--hover) }
+.idx .label { font: 700 .72rem/1 var(--mono); letter-spacing: .1em; color: var(--accent) }
+.idx .val { font: 700 1.35rem var(--mono) }
+.idx svg { width: 100%; height: 44px; display: block }
+@media (max-width: 560px) { .idx { grid-template-columns: 1fr auto } .idx svg { grid-column: 1 / -1; grid-row: 2 } }
 
-/* ---------- scan grid */
-.filters { display: flex; flex-wrap: wrap; gap: 8px }
-.chip { font: 600 .82rem/1 var(--body); padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line);
-  background: var(--card); color: var(--ink); cursor: pointer }
+/* controls */
+.controls { display: grid; gap: 10px }
+.summary { display: flex; flex-wrap: wrap; gap: 8px }
+.chip { font: 700 .8rem/1 var(--body); padding: 8px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); cursor: pointer; display: inline-flex; gap: 6px; align-items: center }
+.chip b { font-family: var(--mono) }
 .chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink) }
-.chip:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 8px; min-width: 0 }
-.card-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px }
-.sym { font: 700 1rem var(--mono) }
-.name { font-size: .78rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-.price { font: 600 1rem var(--mono) }
-.chg { font: 600 .78rem var(--mono) }
-.chg.up { color: var(--up) } .chg.down { color: var(--down) }
-.spark { width: 100%; height: 74px; display: block }
-.tags { display: flex; flex-wrap: wrap; gap: 6px }
-.tag { font: 700 .72rem/1 var(--body); padding: 5px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent) }
-.tag.oversold { background: var(--down-soft); color: var(--down) }
-.tag.reclaim { background: var(--up-soft); color: var(--up) }
-.rsi { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; font: .72rem var(--mono); color: var(--muted) }
-.rsi-track { position: relative; height: 8px; border-radius: 4px;
-  background: linear-gradient(90deg, var(--down-soft) 0 30%, var(--band) 30% 70%, var(--accent-soft) 70% 100%) }
-.rsi-mark { position: absolute; top: -3px; width: 4px; height: 14px; border-radius: 2px; background: var(--ink); transform: translateX(-50%) }
-.rsi-val { color: var(--ink); font-weight: 600 }
-.hot { color: var(--down); font-weight: 700 }
-.scan-key { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .82rem; color: var(--muted) }
-.scan-key svg { vertical-align: middle; margin-right: 6px }
-.callout { border-left: 3px solid var(--accent); padding: 10px 14px; background: var(--card); border-radius: 0 8px 8px 0; font-size: .92rem }
+.row2 { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.search { flex: 1 1 200px; min-width: 0; font: 600 .95rem var(--body); padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink) }
+select.sort { font: 600 .85rem var(--body); padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink) }
+.asof { font-size: .8rem; color: var(--muted) }
 
-/* ---------- plain summary + glossary */
-.easy { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px }
-.easy-card { background: var(--card); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: 12px; padding: 16px; display: grid; gap: 8px; align-content: start }
-.easy-k { font: 700 .75rem/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent) }
-.easy-v { font-size: 1.15rem; line-height: 1.4 }
-.easy-s { font-size: .92rem; color: var(--muted) }
-.hint { font-size: .9rem; color: var(--muted) }
-.hint a, footer a { color: var(--accent) }
-.gloss { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px }
-.gloss div { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 4px }
-.gloss dt { font: 700 1rem var(--display) }
-.gloss dd { margin: 0; font-size: .9rem; color: var(--muted) }
+/* list */
+.list { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden }
+.lhead, .item { display: grid; grid-template-columns: minmax(0, 1.6fr) 110px minmax(0, .9fr) 70px minmax(0, 1.7fr) 18px; gap: 12px; align-items: center; padding: 10px 14px }
+.lhead { font: 700 .7rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); background: var(--band) }
+.item { width: 100%; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; cursor: pointer }
+.item:last-child { border-bottom: 0 }
+.item:hover { background: var(--hover) }
+.item.has { box-shadow: inset 3px 0 0 var(--accent) }
+.sym { font: 700 .95rem var(--mono) }
+.nm { font-size: .78rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.item svg { width: 110px; height: 30px; display: block }
+.px { font: 600 .92rem var(--mono); text-align: right } .px small { display: block; font-size: .76rem; font-weight: 600 }
+.rsi { font: 700 .82rem var(--mono); text-align: right }
+.rsi.hot { color: var(--down) } .rsi.cold { color: var(--down) }
+.tags { display: flex; flex-wrap: wrap; gap: 5px }
+.tag { font: 700 .72rem/1 var(--body); padding: 5px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); white-space: nowrap }
+.tag.g { background: var(--up-soft); color: var(--up) } .tag.r { background: var(--down-soft); color: var(--down) }
+.tag.none { background: transparent; color: var(--muted); font-weight: 400; padding-left: 0 }
+.chev { color: var(--muted); font: 700 1rem var(--mono) }
+@media (max-width: 720px) {
+  .lhead { display: none }
+  .item { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "a c" "e e"; row-gap: 8px }
+  .item > :nth-child(1) { grid-area: a } .item > :nth-child(2), .item > :nth-child(4), .item > :nth-child(6) { display: none }
+  .item > :nth-child(3) { grid-area: c } .item > :nth-child(5) { grid-area: e }
+}
+.empty { padding: 24px; text-align: center; color: var(--muted) }
+.note { font-size: .82rem; color: var(--muted) }
 
-/* ---------- nifty index */
-.idx { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 18px; align-items: start }
-@media (max-width: 820px) { .idx { grid-template-columns: 1fr } }
-.idx-main { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 12px; min-width: 0 }
-.idx-price { display: grid; gap: 6px }
-.idx-price .chg { font-size: 1rem }
-.idx-sub { color: var(--muted); font-size: .88rem }
-.idx-chart { width: 100%; height: auto; display: block }
-.idx-side { display: grid; gap: 14px; min-width: 0 }
-.stats { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden }
-.stats div { background: var(--card); padding: 10px 12px; display: grid; gap: 2px }
-.stats dt { font-size: .75rem; color: var(--muted) }
-.stats dd { margin: 0; font: 600 .98rem var(--mono); font-variant-numeric: tabular-nums }
-.orb { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 8px }
-.orb svg { width: 100%; height: auto }
-.orb p { font-size: .82rem; color: var(--muted) }
-
-/* ---------- setups */
-.setups { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px }
-.setup { display: grid; gap: 10px; align-content: start }
-.setup svg { width: 100%; height: auto; background: var(--card); border: 1px solid var(--line); border-radius: 12px }
-.setup p { font-size: .92rem; color: var(--muted) }
-
-/* ---------- flow */
-.flow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; counter-reset: s }
-.flow li { counter-increment: s; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 4px; position: relative }
-.flow li::before { content: counter(s); font: 700 .75rem var(--mono); color: var(--accent) }
-.flow b { font-family: var(--display); font-size: 1rem }
-.flow span { font-size: .82rem; color: var(--muted) }
-.flow code { font: .72rem var(--mono); color: var(--muted) }
-.flow li.gate { border-color: var(--accent) }
-
-/* ---------- calculator */
-.calc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 18px; align-items: start }
-@media (max-width: 760px) { .calc { grid-template-columns: 1fr } }
-.form { display: grid; gap: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px }
-.field { display: grid; gap: 4px }
-.field label { font-size: .82rem; color: var(--muted) }
-.field input, .field select { font: 600 1rem var(--mono); padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); width: 100% }
-.result { display: grid; gap: 14px }
-.big { font: 800 clamp(2.4rem, 7vw, 3.6rem)/1 var(--display) }
-.result .row { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: .9rem; color: var(--muted) }
-.result .row b { color: var(--ink); font-family: var(--mono) }
-.ladder { width: 100%; height: auto; max-width: 520px }
-.warn { color: var(--down); font-weight: 700 }
-
-/* ---------- holidays */
-.hol { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px }
-.hday { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 2px }
-.hday .d { font: 700 .95rem var(--mono) }
-.hday .n { font-size: .78rem; color: var(--muted) }
-.hday.past { opacity: .45 }
-.hday.next { border-color: var(--accent); background: var(--accent-soft) }
-.hday.next .d::after { content: " · agli"; color: var(--accent); font-size: .75rem }
-
-/* ---------- commands */
-.cmds { display: grid; gap: 10px }
-.cmd { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px }
-.cmd .when { font-size: .78rem; color: var(--accent); font-weight: 700 }
-.cmd pre { margin: 0; overflow-x: auto; font: .8rem var(--mono) }
-.cmd button { font: 600 .78rem var(--body); padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer }
-
-footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 18px; display: grid; gap: 6px }
-body{margin:0}[hidden]{display:none!important}img{max-width:100%}
+/* detail */
+.back { justify-self: start; border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 7px 12px; cursor: pointer; font-weight: 700 }
+.dhead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 10px 20px }
+.dprice { text-align: right } .dprice .big { font: 800 clamp(1.8rem, 5vw, 2.4rem)/1 var(--mono) }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 12px; min-width: 0 }
+.panel h3 { margin: 0; font: 700 1rem var(--display) }
+.why { display: grid; gap: 10px }
+.why div { display: grid; gap: 4px; padding: 12px; border-radius: 10px; background: var(--accent-soft) }
+.why div.g { background: var(--up-soft) } .why div.r { background: var(--down-soft) }
+.why b { font-family: var(--display) } .why span { font-size: .9rem }
+.why div.plain { background: var(--band) }
+.chart { width: 100%; height: auto; display: block; touch-action: pan-y }
+.key { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .8rem; color: var(--muted) }
+.key svg { vertical-align: middle; margin-right: 5px }
+.tip { font: 600 .85rem var(--mono); min-height: 1.3em }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px; align-items: start }
+@media (max-width: 800px) { .grid2 { grid-template-columns: 1fr } }
+.stats { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border-radius: 10px; overflow: hidden; border: 1px solid var(--line) }
+.stats div { background: var(--card); padding: 9px 12px; display: grid; gap: 2px }
+.stats dt { font-size: .74rem; color: var(--muted) } .stats dd { margin: 0; font: 600 .95rem var(--mono) }
+.meter { position: relative; height: 10px; border-radius: 5px; background: linear-gradient(90deg, var(--down-soft) 0 30%, var(--band) 30% 70%, var(--accent-soft) 70%) }
+.meter i { position: absolute; top: -4px; width: 4px; height: 18px; border-radius: 2px; background: var(--ink); transform: translateX(-50%) }
+.meterlab { display: flex; justify-content: space-between; font: .7rem var(--mono); color: var(--muted) }
+.calc { display: grid; gap: 10px }
+.calc .f { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+.calc label { display: grid; gap: 3px; font-size: .78rem; color: var(--muted) }
+.calc input { font: 600 .95rem var(--mono); padding: 8px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); width: 100% }
+.calc .out { font-size: .9rem } .calc .out b { font-family: var(--mono) }
+.calc .shares { font: 800 2rem/1 var(--display) }
+footer { font-size: .8rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 4px }
 </style>
 </head>
 <body>
-
-
 <div class="wrap">
-
-  <!-- ===== top ===== -->
   <header class="top">
-    <div class="head">
-      <span class="eyebrow">NSE · IST · Nifty 50</span>
-      <h1>Nifty 50 Day Trader</h1>
-      <p class="lede">Aapka day-trading kit ek page par: aaj market khula hai ya nahi, kaun se charts mein setup bana, aur ek trade shuru se aakhir tak kaise chalta hai.</p>
-    </div>
-    <div class="status" aria-live="polite">
-      <span id="pill" class="pill closed"><span class="dot"></span><span id="pillText">…</span></span>
-      <span id="clock" class="clock num">--:--:-- IST</span>
-      <span id="statusNote" class="note"></span>
-    </div>
-    <div class="daybar">
-      <div class="daybar-scroll"><svg id="daysvg" viewBox="0 0 900 120" role="img" aria-label="NSE trading day 9:15 se 3:30 tak"></svg></div>
-      <div class="legend">
-        <span><i style="background:var(--accent-soft);border:1px solid var(--accent)"></i>Opening range banta hai (9:15–9:30)</span>
-        <span><i style="background:var(--up-soft);border:1px solid var(--up)"></i>Entry le sakte ho (9:30–3:00)</span>
-        <span><i style="background:var(--down-soft);border:1px solid var(--down)"></i>Naya trade nahi, sirf exit (3:00–3:30)</span>
-      </div>
+    <div class="brand"><h1>Nifty 50 Scanner</h1><small id="asof">Data load ho raha hai…</small></div>
+    <div class="status">
+      <span id="pill" class="pill closed"><i></i><span id="pillText">NSE</span></span>
+      <span id="clock" class="mono">--:-- IST</span>
+      <a class="guide" href="guide.html">Guide aur shabdkosh</a>
     </div>
   </header>
 
-  <!-- ===== plain summary ===== -->
-  <section aria-labelledby="easy-h">
-    <div class="head">
-      <span class="eyebrow">Seedhi baat</span>
-      <h2 id="easy-h">Ye page kya batata hai?</h2>
-    </div>
-    <div class="easy">
-      <div class="easy-card">
-        <span class="easy-k">1 · Nifty ne kya kiya</span>
-        <p class="easy-v"><b>2 Nov ko Nifty 23,440 par band hua</b>, pichhle din se <span style="color:var(--up)">1.68% upar</span>.</p>
-        <p class="easy-s">Ye pichhle 20 din ke sabse unche level (23,146) se bhi upar hai. Aise mein market mein tezi ka mood maana jaata hai, par ye pakka nahi ki aage bhi chadhega.</p>
-      </div>
-      <div class="easy-card">
-        <span class="easy-k">2 · Kal kis level par nazar rakhein</span>
-        <p class="easy-v"><b>23,146</b> ek "line" hai.</p>
-        <p class="easy-s">Nifty iske upar tika rahe to tezi bani hui hai. Wapas iske neeche aa jaaye to aaj ki tezi ka signal kamzor pad gaya. Ye sirf dekhne ka level hai, kharidne-bechne ki salah nahi.</p>
-      </div>
-      <div class="easy-card">
-        <span class="easy-k">3 · Kal ka time-table</span>
-        <p class="easy-v"><b>9:15 khulega, 3:30 band.</b></p>
-        <p class="easy-s">Pehle 15 minute (9:15–9:30) sirf dekho. Naya trade 3:00 ke baad mat lo. Jo trade khula ho, 3:15 tak band kar do.</p>
-      </div>
-    </div>
-    <p class="hint">Neeche ka har hissa inhi teen baaton ko detail mein dikhata hai. Koi shabd samajh na aaye to sabse neeche <a href="#shabd">shabdkosh</a> dekho.</p>
-  </section>
-
-  <!-- ===== nifty index ===== -->
-  <section aria-labelledby="idx-h">
-    <div class="head">
-      <span class="eyebrow">Index · ^NSEI</span>
-      <h2 id="idx-h">Nifty 50 index</h2>
-      <p class="lede">Nifty = India ki 50 sabse badi companies ka ek saath score. Chart mein narangi line Nifty ka roz ka closing level hai. Dotted line pichhle 20 din ka sabse uncha level hai: narangi line uske upar gayi matlab naya high.</p>
-    </div>
-    <div class="idx">
-      <div class="idx-main">
-        <div class="idx-price">
-          <div><span class="big num" id="idxPrice"></span> <span class="chg num up" id="idxChg"></span></div>
-          <p class="idx-sub" id="idxSub"></p>
-          <div class="tags" id="idxTags"></div>
-        </div>
-        <svg id="idxChart" class="idx-chart" role="img" aria-label="Nifty 50 ke pichhle 60 din ka chart"></svg>
-        <div class="scan-key">
-          <span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" style="stroke:var(--accent)" stroke-width="2"/></svg>Close</span>
-          <span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" style="stroke:var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>20-din high</span>
-          <span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" style="stroke:var(--up)" stroke-width="1.5"/></svg>20-din average</span>
-          <span><svg width="12" height="12"><circle cx="6" cy="6" r="4" style="fill:var(--paper);stroke:var(--accent)" stroke-width="2"/></svg>2 Nov (sabse naya din)</span>
+  <main id="listView">
+    <div style="display:grid;gap:14px">
+      <button class="idx" id="idxStrip" type="button" aria-label="Nifty 50 index ki detail kholo"></button>
+      <div class="controls">
+        <div class="summary" id="chips" role="group" aria-label="Setup se chhaanto"></div>
+        <div class="row2">
+          <input class="search" id="q" type="search" placeholder="Share dhoondho: INFY, Reliance…" aria-label="Share dhoondho">
+          <select class="sort" id="sort" aria-label="Kram">
+            <option value="setup">Setup wale pehle</option>
+            <option value="chg">Aaj sabse zyada upar</option>
+            <option value="chgd">Aaj sabse zyada neeche</option>
+            <option value="rsi">RSI zyada se kam</option>
+            <option value="name">A se Z</option>
+          </select>
         </div>
       </div>
-      <div class="idx-side">
-        <dl class="stats" id="idxStats"></dl>
-        <div class="orb">
-          <h3>2 Nov: opening range breakout</h3>
-          <svg id="orbSvg" viewBox="0 0 300 120" role="img" aria-label="2 Nov ki opening range aur breakout"></svg>
-          <p>Narangi dabba = pehle 15 minute mein Nifty kitna upar-neeche gaya. 9:40 par Nifty is dabbe ke upar nikal gaya (hara gola). Isi ko "breakout" kehte hain.</p>
-        </div>
+      <div class="list" role="list">
+        <div class="lhead" aria-hidden="true"><span>Share</span><span>45 din</span><span style="text-align:right">Close</span><span style="text-align:right">RSI</span><span>Setup</span><span></span></div>
+        <div id="rows"></div>
       </div>
+      <p class="note">Kisi bhi share par click karo, uski poori detail khulegi. Narangi patti wale shares mein koi setup bana hai. Setup ek pattern hai, kharidne ki salah nahi.</p>
     </div>
-    <p class="callout">Index ko seedha kharida nahi ja sakta. Nifty futures ya options mein trade hota hai, aur ye tools F&amp;O order nahi bhejte. Inhe chart aur levels padhne ke liye use karo. Options mein poora premium doob sakta hai.</p>
-  </section>
+  </main>
 
-  <!-- ===== scan ===== -->
-  <section aria-labelledby="scan-h">
-    <div class="head">
-      <span class="eyebrow">Daily scan · 30 Oct 2026 close</span>
-      <h2 id="scan-h">50 mein se 16 charts mein setup bana</h2>
-      <p class="lede">Computer ne Nifty ki 50 companies ke chart dekhe. In 16 mein koi khaas pattern (setup) dikha. Har card mein us company ka 45 din ka chart, aaj ka daam aur ek RSI meter hai.</p>
-    </div>
-    <div class="scan-key">
-      <span><svg width="22" height="8"><line style="stroke:var(--accent)" x1="0" y1="4" x2="22" y2="4" stroke-width="2"/></svg>Price (45 din)</span>
-      <span><svg width="22" height="8"><line style="stroke:var(--muted)" x1="0" y1="4" x2="22" y2="4" stroke-width="1.5" stroke-dasharray="4 3"/></svg>Pichhle 20 din ka high</span>
-      <span><svg width="22" height="8"><line style="stroke:var(--up)" x1="0" y1="4" x2="22" y2="4" stroke-width="1.5" opacity=".7"/></svg>20-din average</span>
-      <span>RSI: <span style="color:var(--down)">30 se neeche</span> = bahut gira, <span style="color:var(--accent)">70 se upar</span> = bahut chadha</span>
-    </div>
-    <div class="filters" role="group" aria-label="Setup ke hisaab se chhaanto" id="filters"></div>
-    <div class="grid" id="grid"></div>
-    <p class="callout">Ye kharidne ki list nahi hai. Scan sirf batata hai ki kis chart ne koi rule poora kiya. Kal subah 9:15 se pehle scan dobara chalao: Yahoo ne 2 Nov ka close abhi nahi bhara hai.</p>
-  </section>
-
-  <!-- ===== setups ===== -->
-  <section aria-labelledby="setup-h">
-    <div class="head">
-      <span class="eyebrow">Setups ka matlab</span>
-      <h2 id="setup-h">Chaar pattern, chaar tasveerein</h2>
-    </div>
-    <div class="setups">
-      <figure class="setup" style="margin:0">
-        <svg viewBox="0 0 240 130" aria-hidden="true">
-          <line style="stroke:var(--muted)" x1="16" y1="48" x2="224" y2="48" stroke-dasharray="5 4"/>
-          <text style="fill:var(--muted);font-family:var(--mono)" x="20" y="40" font-size="10">20-din ka high</text>
-          <polyline style="stroke:var(--accent)" fill="none" stroke-width="2.5" stroke-linejoin="round" points="16,98 36,80 56,92 76,62 96,78 116,52 136,74 156,58 176,70 196,50 216,26"/>
-          <circle style="fill:var(--up)" cx="216" cy="26" r="5"/>
-        </svg>
-        <h3>20-din ka high toda</h3>
-        <p>Aaj ka close pichhle 20 din ke sabse unche close se upar band hua. Matlab kharidaar zor mein hain.</p>
-      </figure>
-      <figure class="setup" style="margin:0">
-        <svg viewBox="0 0 240 130" aria-hidden="true">
-          <polyline style="stroke:var(--accent)" fill="none" stroke-width="2.5" stroke-linejoin="round" points="16,112 40,96 64,70 88,40 104,30"/>
-          <polygon style="fill:var(--accent-soft);stroke:var(--accent)" points="104,26 200,40 200,62 104,48" stroke-dasharray="3 3"/>
-          <polyline style="stroke:var(--accent)" fill="none" stroke-width="2.5" stroke-linejoin="round" points="104,30 124,46 140,36 160,52 176,44 196,56 216,30"/>
-          <text style="fill:var(--muted);font-family:var(--mono)" x="22" y="22" font-size="10">danda</text>
-          <text style="fill:var(--muted);font-family:var(--mono)" x="140" y="80" font-size="10">jhanda</text>
-        </svg>
-        <h3>Bull flag</h3>
-        <p>Pehle tez chadhai (danda), phir kuch din halka sa neeche-upar (jhanda). Kabhi-kabhi iske baad ek aur chadhai aati hai.</p>
-      </figure>
-      <figure class="setup" style="margin:0">
-        <svg viewBox="0 0 240 130" aria-hidden="true">
-          <path style="stroke:var(--up)" d="M16,60 C70,62 130,70 224,66" fill="none" stroke-width="2" opacity=".75"/>
-          <text style="fill:var(--up);font-family:var(--mono)" x="20" y="52" font-size="10">20-din average</text>
-          <polyline style="stroke:var(--accent)" fill="none" stroke-width="2.5" stroke-linejoin="round" points="16,40 46,56 76,84 106,100 136,92 166,86 196,78 216,54"/>
-          <circle style="fill:var(--up)" cx="216" cy="54" r="5"/>
-        </svg>
-        <h3>Average ke upar wapas</h3>
-        <p>Price 20-din average ke neeche chala gaya tha, aur ab wapas uske upar band hua.</p>
-      </figure>
-      <figure class="setup" style="margin:0">
-        <svg viewBox="0 0 240 130" aria-hidden="true">
-          <rect style="fill:var(--down-soft)" x="16" y="94" width="208" height="26"/>
-          <text style="fill:var(--down);font-family:var(--mono)" x="22" y="112" font-size="10">RSI 30 se neeche</text>
-          <polyline style="stroke:var(--accent)" fill="none" stroke-width="2.5" stroke-linejoin="round" points="16,24 46,34 76,30 106,52 136,62 166,80 196,98 216,104"/>
-          <circle style="fill:var(--down)" cx="216" cy="104" r="5"/>
-        </svg>
-        <h3>Oversold</h3>
-        <p>Stock kuch din se lagataar gir raha hai (RSI 30 se neeche). Uchhal bhi sakta hai aur aur gir bhi sakta hai: ye sirf chetavni hai.</p>
-      </figure>
-    </div>
-  </section>
-
-  <!-- ===== flow ===== -->
-  <section aria-labelledby="flow-h">
-    <div class="head">
-      <span class="eyebrow">Ek trade ka raasta</span>
-      <h2 id="flow-h">Scan se exit tak, 9 kadam</h2>
-      <p class="lede">Har tool pichhle tool ka likha hua padhta hai. Order sirf aapke "yes" ke baad jaata hai.</p>
-    </div>
-    <ol class="flow">
-      <li><b>Scan</b><span>Charts mein setup dhoondho</span><code>/trader-scanner</code></li>
-      <li><b>News</b><span>Koi khabar to nahi jo chart bigaad de</span><code>/trader-news</code></li>
-      <li><b>Entry</b><span>Range ke upar pehla 5-min close</span><code>/trader-entry</code></li>
-      <li><b>Exit plan</b><span>Stop aur target pehle se tay</span><code>/trader-exit</code></li>
-      <li><b>Time Machine</b><span>10,000 baar din dohraa kar odds dekho</span><code>/trader-timemachine</code></li>
-      <li><b>Budget</b><span>Kitne shares, max loss ke andar</span><code>/trader-budget</code></li>
-      <li class="gate"><b>Risk check</b><span>PASS ya BLOCK, wajah ke saath</span><code>/trader-risk</code></li>
-      <li class="gate"><b>Broker</b><span>Aapka "yes" ke baad hi order</span><code>/trader-broker</code></li>
-      <li><b>Alerts</b><span>Stop, target, aur 3:15 par bahar</span><code>/trader-alerts</code></li>
-    </ol>
-  </section>
-
-  <!-- ===== calculator ===== -->
-  <section aria-labelledby="calc-h">
-    <div class="head">
-      <span class="eyebrow">Position size</span>
-      <h2 id="calc-h">Kitne shares lun?</h2>
-      <p class="lede">Stop jitna door, shares utne kam. Max loss pehle tay karo, shares uske baad aate hain.</p>
-    </div>
-    <div class="calc">
-      <form class="form" id="calcForm">
-        <div class="field"><label for="cSym">Share chuno (scan wale 16 mein se)</label><select id="cSym"></select></div>
-        <div class="field"><label for="cEntry">Entry price (₹)</label><input id="cEntry" type="number" step="0.05" min="0" value="1185" inputmode="decimal"></div>
-        <div class="field"><label for="cStop">Stop-loss (₹)</label><input id="cStop" type="number" step="0.05" min="0" value="1173.15" inputmode="decimal"></div>
-        <div class="field"><label for="cTarget">Target (₹)</label><input id="cTarget" type="number" step="0.05" min="0" value="1208.85" inputmode="decimal"></div>
-        <div class="field"><label for="cRisk">Ek trade mein max loss (₹)</label><input id="cRisk" type="number" step="50" min="0" value="500" inputmode="decimal"></div>
-        <div class="field"><label for="cCash">Account mein paisa (₹)</label><input id="cCash" type="number" step="1000" min="0" value="50000" inputmode="decimal"></div>
-      </form>
-      <div class="result" aria-live="polite">
-        <div><span class="eyebrow">Shares</span><div class="big num" id="rShares">0</div></div>
-        <div class="row" id="rRow"></div>
-        <svg class="ladder" id="ladder" viewBox="0 0 520 170" role="img" aria-label="Entry, stop aur target ka chitra"></svg>
-        <p id="rNote" style="font-size:.9rem;color:var(--muted)"></p>
-      </div>
-    </div>
-    <p style="font-size:.82rem;color:var(--muted)" id="calcFoot"></p>
-    <div class="callout"><b>Kaunsa share lun?</b> Ye page nahi batata, aur koi pakke se bata bhi nahi sakta. Tools ka tareeka ye hai: kal 9:35 ke baad <span class="mono">scan.py orb</span> chalao. Inme se jo share sach mein apni 9:15–9:30 ki range ke upar nikle, sirf wahi entry ke layak signal hai. Phir uska stop aur target <span class="mono">/trader-exit</span> se tay karo, aur shares is calculator se. Pehle paper trading karo.</div>
-  </section>
-
-  <!-- ===== holidays ===== -->
-  <section aria-labelledby="hol-h">
-    <div class="head">
-      <span class="eyebrow">NSE 2026</span>
-      <h2 id="hol-h">Chhutti ke din</h2>
-      <p class="lede">In dinon market band rehta hai. Diwali ka Muhurat session (8 Nov, Sunday) alag hota hai, uska time NSE circular mein dekhein.</p>
-    </div>
-    <div class="hol" id="hol"></div>
-  </section>
-
-  <!-- ===== commands ===== -->
-  <section aria-labelledby="cmd-h">
-    <div class="head">
-      <span class="eyebrow">Terminal</span>
-      <h2 id="cmd-h">Roz ka routine, teen commands</h2>
-    </div>
-    <div class="cmds" id="cmds"></div>
-  </section>
-
-  <!-- ===== glossary ===== -->
-  <section aria-labelledby="shabd-h" id="shabd">
-    <div class="head">
-      <span class="eyebrow">Shabdkosh</span>
-      <h2 id="shabd-h">Mushkil shabd, aasan matlab</h2>
-    </div>
-    <dl class="gloss">
-      <div><dt>Nifty 50</dt><dd>India ki 50 badi companies ka milaa-jula score. Ye upar gaya matlab zyadatar badi companies ke share upar gaye.</dd></div>
-      <div><dt>Close / band hona</dt><dd>3:30 baje market band hone par jo daam tha. Chart har din ka yahi daam jodta hai.</dd></div>
-      <div><dt>20-din high</dt><dd>Pichhle 20 trading dinon mein sabse uncha closing daam. Isse upar band hona = naya high.</dd></div>
-      <div><dt>20-din average</dt><dd>Pichhle 20 din ke closing daam ka ausat. Daam iske upar = haal mein tezi, neeche = mandi.</dd></div>
-      <div><dt>RSI</dt><dd>0 se 100 ka meter jo batata hai ki share haal mein kitni tezi se chadha ya gira. 70 se upar = bahut chadh chuka, 30 se neeche = bahut gir chuka.</dd></div>
-      <div><dt>Setup</dt><dd>Chart par ek jaana-pehchana pattern. Ye sirf ishara hai, guarantee nahi.</dd></div>
-      <div><dt>Opening range</dt><dd>Market khulne ke pehle 15 minute (9:15–9:30) ka sabse uncha aur sabse neecha daam.</dd></div>
-      <div><dt>Breakout</dt><dd>Jab daam kisi range ya purane high ke upar nikal kar band ho.</dd></div>
-      <div><dt>Stop-loss</dt><dd>Wo daam jahan aap pehle se tay karte ho ki galat nikle to bech denge, taaki nuksaan chhota rahe.</dd></div>
-      <div><dt>Target</dt><dd>Wo daam jahan aap munafa le kar nikal jaoge.</dd></div>
-      <div><dt>Day trade</dt><dd>Usi din khareedna aur usi din bechna. Raat bhar position nahi rakhte.</dd></div>
-      <div><dt>Paper trading</dt><dd>Nakli paise se practice. Asli paisa lagane se pehle zaroor karo.</dd></div>
-    </dl>
-  </section>
+  <main id="detailView" hidden></main>
 
   <footer>
-    <p><b>Financial advice nahi hai.</b> Ye software free public data padhta hai aur hisaab lagata hai. Day trading mein zyadatar log paisa gawaate hain. Pehle paper trading karo.</p>
-    <p>Data: Yahoo Finance (free, delayed). Holidays: NSE circulars NSE/CMTR/71775 aur NSE/CMTR/72260. Nifty 50 list: 30 Sep 2026 rebalance ke baad.</p>
+    <p><b>Financial advice nahi hai.</b> Day trading aur options mein zyadatar log paisa gawaate hain. Pehle paper trading karo.</p>
+    <p>Data: Yahoo Finance (free, delayed). Har din market band hone ke baad aur subah khulne se pehle apne aap update hota hai. Setups us din ke close par hain jo poora ho chuka hai.</p>
   </footer>
 </div>
 
 <script>
-const DATA = {"hits":[{"symbol":"INFY.NS","setups":["breakout_20d"],"price":1185.0,"rsi":64.2},{"symbol":"KOTAKBANK.NS","setups":["breakout_20d"],"price":461.6,"rsi":69.0},{"symbol":"LT.NS","setups":["breakout_20d"],"price":3871.7,"rsi":61.5},{"symbol":"TCS.NS","setups":["bull_flag"],"price":2502.6,"rsi":66.6},{"symbol":"BSE.NS","setups":["breakout_20d"],"price":3510.4,"rsi":61.2},{"symbol":"ETERNAL.NS","setups":["breakout_20d"],"price":343.65,"rsi":62.2},{"symbol":"SHRIRAMFIN.NS","setups":["oversold"],"price":823.15,"rsi":28.6},{"symbol":"SUNPHARMA.NS","setups":["reclaim_ma20"],"price":1777.7,"rsi":47.4},{"symbol":"NTPC.NS","setups":["reclaim_ma20"],"price":316.25,"rsi":52.9},{"symbol":"TECHM.NS","setups":["bull_flag"],"price":1790.8,"rsi":65.6},{"symbol":"HCLTECH.NS","setups":["breakout_20d","bull_flag"],"price":1428.1,"rsi":69.5},{"symbol":"DRREDDY.NS","setups":["breakout_20d"],"price":1352.0,"rsi":75.5},{"symbol":"POWERGRID.NS","setups":["breakout_20d"],"price":265.0,"rsi":62.0},{"symbol":"CIPLA.NS","setups":["breakout_20d"],"price":1378.9,"rsi":58.9},{"symbol":"NESTLEIND.NS","setups":["oversold"],"price":1167.0,"rsi":29.7},{"symbol":"TATACONSUM.NS","setups":["breakout_20d"],"price":1025.9,"rsi":61.1}],"closes":{"INFY.NS":{"closes":[1120.0,1110.8,1144.0,1133.8,1156.0,1140.0,1130.3,1130.0,1087.5,1082.0,1035.0,1036.5,1037.7,1077.0,1060.0,1058.6,1051.4,1038.5,1029.4,1020.5,1014.5,1000.2,1003.2,1015.4,994.1,1035.0,1020.5,1013.85,992.0,997.0,1023.4,1020.0,1062.1,1088.0,1110.0,1161.2,1130.7,1168.0,1153.35,1153.8,1166.0,1163.0,1123.15,1146.5,1185.0],"first":"2026-08-26","last":"2026-10-30"},"KOTAKBANK.NS":{"closes":[416.7,424.2,423.7,419.4,425.0,423.5,421.15,424.5,422.1,419.25,414.0,416.55,419.0,409.8,415.0,416.5,412.5,414.8,412.65,413.25,405.0,404.0,401.55,406.0,417.0,418.35,416.0,431.9,440.0,435.0,441.0,443.4,439.0,438.05,447.95,447.4,442.3,437.8,437.0,430.5,440.75,442.5,440.0,459.0,461.6],"first":"2026-08-26","last":"2026-10-30"},"LT.NS":{"closes":[4038.1,4027.0,4045.8,4044.9,3980.1,3981.0,3975.0,3964.1,3999.0,3946.1,3922.6,3955.0,3930.7,3850.7,3807.7,3836.2,3885.0,3904.8,3866.4,3929.9,3858.4,3876.2,3766.4,3749.1,3760.0,3693.4,3750.0,3770.0,3701.5,3625.1,3703.3,3627.5,3675.0,3642.0,3632.0,3627.1,3661.9,3636.0,3638.3,3647.0,3680.0,3665.1,3801.3,3837.1,3871.7],"first":"2026-08-26","last":"2026-10-30"},"TCS.NS":{"closes":[2270.0,2248.4,2342.0,2399.3,2369.0,2348.0,2320.1,2304.0,2270.0,2255.5,2208.0,2204.1,2200.8,2251.0,2188.8,2190.0,2105.0,2128.7,2105.0,2089.6,2087.0,2082.0,2070.7,2032.4,2050.6,2075.0,2114.4,2100.0,2080.3,2076.0,2156.0,2125.0,2269.3,2304.9,2350.0,2465.0,2460.9,2529.0,2506.9,2530.0,2535.0,2496.9,2460.0,2478.0,2502.6],"first":"2026-08-26","last":"2026-10-30"},"BSE.NS":{"closes":[3325.6,3328.0,3405.0,3282.0,3242.0,3168.0,3306.1,3409.8,3446.2,3394.0,3289.8,3306.0,3384.0,3310.0,3240.0,3259.0,3266.4,3161.0,3235.0,3270.7,3183.8,3191.5,3097.5,3200.0,3092.0,3046.0,3179.6,3305.0,3356.0,3334.8,3287.2,3330.2,3375.4,3338.0,3428.0,3363.0,3336.0,3248.3,3265.0,3230.8,3359.0,3441.1,3485.0,3502.0,3510.4],"first":"2026-08-26","last":"2026-10-30"},"ETERNAL.NS":{"closes":[327.0,328.5,328.0,328.1,327.75,327.3,324.8,322.75,320.8,321.6,320.6,322.1,323.5,315.25,317.0,322.35,326.85,335.9,342.0,342.65,335.5,335.0,330.95,327.85,320.0,313.9,320.8,329.0,328.0,319.05,323.45,323.0,320.45,316.0,323.0,325.3,320.2,312.35,304.45,317.4,325.55,331.0,326.0,337.85,343.65],"first":"2026-08-26","last":"2026-10-30"},"SHRIRAMFIN.NS":{"closes":[1117.5,1101.0,1086.9,1109.9,1059.1,1047.0,1044.2,1041.0,1037.0,1029.0,1029.0,1038.0,1028.6,979.8,979.0,995.0,1010.0,1011.8,1006.0,1010.8,990.0,994.1,976.3,971.5,982.7,945.0,971.4,965.05,948.0,917.25,940.45,929.4,988.0,950.0,943.8,939.95,926.5,904.95,900.9,865.0,825.0,823.6,832.55,841.1,823.15],"first":"2026-08-26","last":"2026-10-30"},"SUNPHARMA.NS":{"closes":[1899.5,1913.3,1920.0,1984.8,1929.0,1931.7,1916.0,1899.0,1895.0,1885.9,1864.9,1861.0,1840.0,1835.0,1853.5,1867.3,1837.3,1868.9,1846.4,1865.0,1849.9,1852.2,1838.0,1865.0,1816.6,1801.0,1779.7,1804.1,1781.0,1759.8,1760.0,1760.0,1770.7,1746.4,1764.0,1758.8,1743.0,1745.1,1758.0,1748.0,1740.0,1751.2,1757.5,1761.0,1777.7],"first":"2026-08-26","last":"2026-10-30"},"NTPC.NS":{"closes":[334.6,330.9,330.05,327.4,327.5,330.0,330.9,332.5,332.0,330.8,334.5,335.0,333.4,329.5,327.0,329.6,323.65,326.4,327.8,326.0,326.6,326.6,321.1,323.5,322.75,315.1,321.8,321.45,316.75,309.7,312.0,310.0,311.0,313.7,314.65,315.15,309.0,303.0,302.6,298.0,300.0,301.8,303.75,310.5,316.25],"first":"2026-08-26","last":"2026-10-30"},"TECHM.NS":{"closes":[1571.0,1585.0,1640.9,1628.0,1638.0,1623.0,1598.0,1596.9,1564.0,1559.0,1508.0,1525.8,1541.0,1575.9,1558.0,1561.0,1537.1,1558.5,1551.6,1557.0,1543.0,1548.0,1542.2,1510.5,1524.0,1533.0,1535.9,1504.5,1491.1,1496.2,1514.1,1471.0,1543.5,1575.2,1650.0,1790.0,1779.1,1834.7,1829.1,1790.0,1795.0,1811.4,1776.6,1769.6,1790.8],"first":"2026-08-26","last":"2026-10-30"},"HCLTECH.NS":{"closes":[1298.5,1282.0,1316.1,1312.2,1351.4,1331.5,1319.0,1293.4,1282.8,1277.0,1229.8,1207.0,1206.1,1253.7,1253.0,1258.3,1249.3,1281.0,1270.4,1256.7,1243.6,1258.0,1252.6,1222.0,1230.0,1243.1,1201.9,1204.4,1185.0,1176.9,1216.7,1223.0,1326.0,1327.0,1360.0,1380.0,1379.9,1424.2,1421.7,1422.2,1417.0,1420.0,1400.5,1403.9,1428.1],"first":"2026-08-26","last":"2026-10-30"},"DRREDDY.NS":{"closes":[1182.0,1177.0,1178.0,1154.4,1171.0,1156.5,1155.0,1151.0,1144.2,1151.0,1145.0,1143.0,1165.5,1145.0,1140.0,1175.0,1185.0,1198.3,1211.0,1211.2,1200.4,1201.0,1221.0,1251.9,1233.0,1206.2,1203.0,1208.0,1203.8,1180.0,1197.0,1229.4,1240.0,1216.0,1218.8,1233.0,1242.5,1244.5,1239.0,1229.5,1310.9,1310.0,1335.4,1345.0,1352.0],"first":"2026-08-26","last":"2026-10-30"},"POWERGRID.NS":{"closes":[265.2,264.9,266.05,263.55,264.55,266.8,265.6,266.0,266.45,265.75,265.85,271.75,269.1,262.8,262.8,263.75,270.3,266.1,265.95,270.2,266.4,269.5,261.85,261.5,260.5,254.55,257.0,257.2,253.05,244.65,249.15,249.0,250.5,248.95,249.85,250.45,250.35,252.15,248.4,247.4,247.0,251.75,251.4,260.0,265.0],"first":"2026-08-26","last":"2026-10-30"},"CIPLA.NS":{"closes":[1402.7,1420.0,1423.5,1409.2,1423.0,1412.8,1394.7,1385.0,1395.0,1384.0,1363.1,1373.3,1366.0,1351.0,1358.0,1376.3,1394.5,1386.1,1384.1,1383.0,1399.0,1399.7,1383.7,1379.3,1346.0,1344.0,1335.5,1340.2,1327.2,1306.8,1301.0,1311.3,1329.6,1314.6,1328.0,1325.1,1324.1,1314.0,1330.9,1338.0,1355.0,1350.0,1365.6,1358.0,1378.9],"first":"2026-08-26","last":"2026-10-30"},"NESTLEIND.NS":{"closes":[1451.5,1450.0,1454.6,1496.5,1438.2,1425.0,1416.0,1410.5,1398.0,1400.5,1393.0,1386.2,1383.3,1362.0,1384.5,1370.6,1372.4,1385.0,1363.9,1387.2,1351.0,1362.6,1346.0,1345.7,1310.0,1307.7,1297.1,1341.4,1324.0,1319.0,1333.0,1324.7,1334.0,1383.2,1275.8,1265.5,1242.7,1223.9,1189.9,1175.0,1173.5,1180.5,1168.0,1188.6,1167.0],"first":"2026-08-26","last":"2026-10-30"},"TATACONSUM.NS":{"closes":[1047.1,1042.0,1040.7,1037.5,1030.5,1012.0,1019.2,1010.0,1015.0,1014.1,1001.0,999.6,991.0,986.1,1000.1,1013.7,996.0,1000.6,984.1,994.3,986.3,983.2,960.0,967.7,949.5,957.0,953.75,976.0,968.5,951.9,955.0,958.8,960.0,987.9,991.45,978.9,966.5,970.65,959.8,963.9,936.5,1000.0,1000.2,1021.0,1025.9],"first":"2026-08-26","last":"2026-10-30"}}};
-const NAMES = {"ADANIENT.NS": "Adani Enterprises", "ADANIPORTS.NS": "Adani Ports & SEZ", "APOLLOHOSP.NS": "Apollo Hospitals", "ASIANPAINT.NS": "Asian Paints", "AXISBANK.NS": "Axis Bank", "BAJAJ-AUTO.NS": "Bajaj Auto", "BAJFINANCE.NS": "Bajaj Finance", "BAJAJFINSV.NS": "Bajaj Finserv", "BEL.NS": "Bharat Electronics", "BHARTIARTL.NS": "Bharti Airtel", "BSE.NS": "BSE", "CIPLA.NS": "Cipla", "COALINDIA.NS": "Coal India", "DRREDDY.NS": "Dr. Reddy's Laboratories", "EICHERMOT.NS": "Eicher Motors", "ETERNAL.NS": "Eternal", "GRASIM.NS": "Grasim Industries", "HCLTECH.NS": "HCLTech", "HDFCBANK.NS": "HDFC Bank", "HDFCLIFE.NS": "HDFC Life", "HINDALCO.NS": "Hindalco Industries", "HINDUNILVR.NS": "Hindustan Unilever", "ICICIBANK.NS": "ICICI Bank", "INDIGO.NS": "InterGlobe Aviation (IndiGo)", "INFY.NS": "Infosys", "ITC.NS": "ITC", "JIOFIN.NS": "Jio Financial Services", "JSWSTEEL.NS": "JSW Steel", "KOTAKBANK.NS": "Kotak Mahindra Bank", "LT.NS": "Larsen & Toubro", "M&M.NS": "Mahindra & Mahindra", "MARUTI.NS": "Maruti Suzuki", "MAXHEALTH.NS": "Max Healthcare", "NESTLEIND.NS": "Nestle India", "NTPC.NS": "NTPC", "ONGC.NS": "Oil and Natural Gas Corporation", "POWERGRID.NS": "Power Grid", "RELIANCE.NS": "Reliance Industries", "SBILIFE.NS": "SBI Life Insurance", "SHRIRAMFIN.NS": "Shriram Finance", "SBIN.NS": "State Bank of India", "SUNPHARMA.NS": "Sun Pharma", "TCS.NS": "Tata Consultancy Services", "TATACONSUM.NS": "Tata Consumer Products", "TMPV.NS": "Tata Motors Passenger Vehicles", "TATASTEEL.NS": "Tata Steel", "TECHM.NS": "Tech Mahindra", "TITAN.NS": "Titan Company", "TRENT.NS": "Trent", "ULTRACEMCO.NS": "UltraTech Cement"};
-const INDEX = {"closes":[24624.65,24636.0,24570.65,24583.8,24471.7,24435.95,24395.85,24366.0,24287.65,24154.9,24078.3,24231.85,24252.0,24219.05,24334.55,24207.75,24090.85,24175.65,24080.4,24055.8,23914.45,23873.45,23897.7,23779.15,23635.1,23431.5,23477.8,23398.1,23118.6,23217.6,23270.6,23346.4,23414.3,23329.0,23446.8,23063.1,23140.5,22780.25,22716.2,22620.45,22421.95,22555.75,22776.1,22603.05,22231.8,22520.45,22363.35,22721.95,22622.7,22997.35,23146.15,22888.95,22811.35,22687.65,22600.0,22753.2,22749.75,22698.85,22936.75,23053.1],"dates":["2026-08-05","2026-08-06","2026-08-07","2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-14","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-15","2026-09-16","2026-09-17","2026-09-18","2026-09-21","2026-09-22","2026-09-23","2026-09-24","2026-09-25","2026-09-28","2026-09-29","2026-09-30","2026-10-01","2026-10-05","2026-10-06","2026-10-07","2026-10-08","2026-10-09","2026-10-12","2026-10-13","2026-10-14","2026-10-15","2026-10-16","2026-10-19","2026-10-21","2026-10-22","2026-10-23","2026-10-26","2026-10-27","2026-10-28","2026-10-29","2026-10-30"],"tags":[],"nums":{"rsi":53.5,"rsi_prev":50.85,"high20":23146.15,"ma20":22707.01,"run_pct":1.66,"range5_pct":1.54},"hi6":24774.3,"lo6":22231.8,"live":{"price":23440.8,"date":"2026-11-02","time":"15:31 IST"},"live_tags":["breakout_20d"],"live_nums":{"rsi":61.03,"rsi_prev":53.5,"high20":23146.15,"ma20":22757.95,"run_pct":1.03,"range5_pct":3.17}};
-const HOLIDAYS = [
-  ["2026-01-15","Maharashtra municipal election"],["2026-01-26","Republic Day"],["2026-03-03","Holi"],
-  ["2026-03-26","Shri Ram Navami"],["2026-03-31","Mahavir Jayanti"],["2026-04-03","Good Friday"],
-  ["2026-04-14","Ambedkar Jayanti"],["2026-05-01","Maharashtra Day"],["2026-05-28","Bakri Id"],
-  ["2026-06-26","Muharram"],["2026-09-14","Ganesh Chaturthi"],["2026-10-02","Gandhi Jayanti"],
-  ["2026-10-20","Dussehra"],["2026-11-10","Diwali-Balipratipada"],["2026-11-24","Guru Nanak Jayanti"],
-  ["2026-12-25","Christmas"]];
-const HSET = new Set(HOLIDAYS.map(h => h[0]));
+const OPEN = 9 * 60 + 15, CLOSE = 15 * 60 + 30;
+const HOLIDAYS = ["2026-01-15","2026-01-26","2026-03-03","2026-03-26","2026-03-31","2026-04-03","2026-04-14","2026-05-01",
+  "2026-05-28","2026-06-26","2026-09-14","2026-10-02","2026-10-20","2026-11-10","2026-11-24","2026-12-25"];
 const SETUP = {
-  breakout_20d: ["20-din high toda", ""], bull_flag: ["Bull flag", ""],
-  reclaim_ma20: ["Average ke upar", "reclaim"], oversold: ["Oversold", "oversold"], oversold_bounce: ["Oversold bounce", "oversold"]
+  breakout_20d: { t: "20-din high toda", c: "" },
+  bull_flag: { t: "Bull flag", c: "" },
+  reclaim_ma20: { t: "Average ke upar", c: "g" },
+  oversold: { t: "Oversold", c: "r" },
+  oversold_bounce: { t: "Oversold bounce", c: "g" },
 };
-const OPEN = 9 * 60 + 15, CLOSE = 15 * 60 + 30, OR_END = 9 * 60 + 30, NO_NEW = 15 * 60, FLAT = 15 * 60 + 15;
-const inr = (v, d = 2) => "₹" + v.toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
-const NS = "http://www.w3.org/2000/svg";
-const STYLED = new Set(["fill", "stroke", "font-family"]);   // var() works in style, not in SVG attributes everywhere
+const NS = "http://www.w3.org/2000/svg", STYLED = new Set(["fill", "stroke", "font-family"]);
 const el = (tag, attrs = {}, parent) => {
   const e = document.createElementNS(NS, tag);
   for (const k in attrs) STYLED.has(k) ? e.style.setProperty(k, attrs[k]) : e.setAttribute(k, attrs[k]);
   if (parent) parent.appendChild(e); return e;
 };
+const fmt = (v, d = 2) => v == null ? "–" : v.toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
+const inr = (v, d = 2) => "₹" + fmt(v, d);
+const pct = v => v == null ? "–" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
+const short = s => s.replace(".NS", "").replace("^NSEI", "NIFTY");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const dmon = d => new Date(d + "T00:00:00Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
+let DATA = null, FILTER = "all";
 
-/* ---------- IST clock */
-function istNow() { const d = new Date(Date.now() + 5.5 * 3600e3); return d; }   // read with getUTC*
-const iso = d => d.toISOString().slice(0, 10);
-function isTradingDay(d) { const w = d.getUTCDay(); return w !== 0 && w !== 6 && !HSET.has(iso(d)); }
-function nextOpen(d) {
-  const n = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const mins = d.getUTCHours() * 60 + d.getUTCMinutes();
-  if (!(isTradingDay(n) && mins < OPEN)) n.setUTCDate(n.getUTCDate() + 1);
-  for (let i = 0; i < 15 && !isTradingDay(n); i++) n.setUTCDate(n.getUTCDate() + 1);
-  return n;
-}
-const hm = m => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
-const dur = m => (m >= 60 ? Math.floor(m / 60) + " ghante " : "") + (m % 60) + " min";
-
-function drawDay(nowMins, trading) {
-  const svg = document.getElementById("daysvg"); svg.textContent = "";
-  const x0 = 40, x1 = 860, y = 46, h = 30;
-  const X = m => x0 + (m - OPEN) / (CLOSE - OPEN) * (x1 - x0);
-  el("rect", { x: x0, y, width: x1 - x0, height: h, rx: 6, fill: "var(--band)" }, svg);
-  el("rect", { x: X(OPEN), y, width: X(OR_END) - X(OPEN), height: h, fill: "var(--accent-soft)", stroke: "var(--accent)" }, svg);
-  el("rect", { x: X(OR_END), y, width: X(NO_NEW) - X(OR_END), height: h, fill: "var(--up-soft)", stroke: "var(--up)" }, svg);
-  el("rect", { x: X(NO_NEW), y, width: X(CLOSE) - X(NO_NEW), height: h, fill: "var(--down-soft)", stroke: "var(--down)" }, svg);
-  const marks = [[OPEN, "9:15", "Market khula"], [OR_END, "9:30", "Range tay"], [NO_NEW, "3:00", "Naya trade band"], [FLAT, "3:15", "Sab bech do"], [CLOSE, "3:30", "Market band"]];
-  marks.forEach(([m, t, lab], i) => {
-    const x = X(m);
-    el("line", { x1: x, x2: x, y1: y - 6, y2: y + h + 6, stroke: "var(--ink)", "stroke-width": m === FLAT ? 2 : 1, "stroke-dasharray": m === FLAT ? "" : "3 3" }, svg);
-    const anchor = i === 0 ? "start" : i === marks.length - 1 ? "end" : "middle";
-    const up = i % 2 === 1;
-    const tx = el("text", { x, y: up ? y - 14 : y + h + 22, "text-anchor": anchor, "font-size": 13, "font-family": "var(--mono)", "font-weight": 700, fill: "var(--ink)" }, svg); tx.textContent = t;
-    const lb = el("text", { x, y: up ? y - 28 : y + h + 38, "text-anchor": anchor, "font-size": 11, fill: "var(--muted)", "font-family": "var(--body)" }, svg); lb.textContent = lab;
-  });
-  if (trading && nowMins >= OPEN && nowMins <= CLOSE) {
-    const x = X(nowMins);
-    el("line", { x1: x, x2: x, y1: y - 2, y2: y + h + 2, stroke: "var(--accent)", "stroke-width": 3 }, svg);
-    el("circle", { cx: x, cy: y - 2, r: 5, fill: "var(--accent)" }, svg);
-  }
-}
-
+/* ---------- clock */
 function tick() {
-  const d = istNow(), mins = d.getUTCHours() * 60 + d.getUTCMinutes();
-  document.getElementById("clock").textContent = d.toISOString().slice(11, 19) + " IST";
-  const td = isTradingDay(d), open = td && mins >= OPEN && mins < CLOSE;
-  const pill = document.getElementById("pill");
-  pill.className = "pill " + (open ? "open" : "closed");
-  document.getElementById("pillText").textContent = open ? "NSE KHULA HAI" : "NSE BAND HAI";
-  let note;
-  if (open) {
-    note = mins < OR_END ? "Opening range ban rahi hai. Entry 9:30 ke baad." :
-           mins < NO_NEW ? "Entry window khula hai. Band hone mein " + dur(CLOSE - mins) + "." :
-           mins < FLAT ? "Naya trade nahi. 3:15 tak sab position band karo." : "Sab band karne ka time ho gaya.";
-  } else {
-    const n = nextOpen(d), h = HOLIDAYS.find(x => x[0] === iso(d));
-    const why = h ? "Aaj chhutti: " + h[1] + ". " : (!td ? "Aaj weekend. " : "");
-    note = why + "Agla session: " + n.toLocaleDateString("hi-IN", { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" }) + ", 9:15 baje.";
-  }
-  document.getElementById("statusNote").textContent = note;
-  drawDay(mins, td);
+  const d = new Date(Date.now() + 5.5 * 3600e3), mins = d.getUTCHours() * 60 + d.getUTCMinutes();
+  const day = d.toISOString().slice(0, 10), w = d.getUTCDay();
+  const open = w > 0 && w < 6 && !HOLIDAYS.includes(day) && mins >= OPEN && mins < CLOSE;
+  document.getElementById("clock").textContent = d.toISOString().slice(11, 16) + " IST";
+  document.getElementById("pill").className = "pill " + (open ? "open" : "closed");
+  document.getElementById("pillText").textContent = open ? "NSE KHULA" : "NSE BAND";
 }
 
-/* ---------- scan cards */
-function spark(svg, closes) {
-  const W = 240, H = 74, p = 4, n = closes.length;
-  const prior = closes.slice(-21, -1), hi20 = Math.max(...prior);
-  const ma = closes.map((_, i) => i >= 19 ? closes.slice(i - 19, i + 1).reduce((a, b) => a + b, 0) / 20 : null);
-  const all = closes.concat([hi20]); const lo = Math.min(...all), hi = Math.max(...all);
-  const X = i => p + i / (n - 1) * (W - 2 * p), Y = v => H - p - (v - lo) / (hi - lo || 1) * (H - 2 * p);
-  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("preserveAspectRatio", "none");
-  const pts = closes.map((v, i) => X(i).toFixed(1) + "," + Y(v).toFixed(1)).join(" ");
-  el("polygon", { points: `${X(0)},${H} ${pts} ${X(n - 1)},${H}`, fill: "var(--accent-soft)", opacity: .6 }, svg);
-  el("line", { x1: X(n - 21), x2: X(n - 1), y1: Y(hi20), y2: Y(hi20), stroke: "var(--muted)", "stroke-width": 1.2, "stroke-dasharray": "4 3", "vector-effect": "non-scaling-stroke" }, svg);
-  el("polyline", { points: ma.map((v, i) => v == null ? null : X(i).toFixed(1) + "," + Y(v).toFixed(1)).filter(Boolean).join(" "), fill: "none", stroke: "var(--up)", "stroke-width": 1.3, opacity: .7, "vector-effect": "non-scaling-stroke" }, svg);
-  el("polyline", { points: pts, fill: "none", stroke: "var(--accent)", "stroke-width": 2, "stroke-linejoin": "round", "vector-effect": "non-scaling-stroke" }, svg);
-  el("circle", { cx: X(n - 1), cy: Y(closes[n - 1]), r: 3.5, fill: "var(--accent)" }, svg);
+/* ---------- small chart */
+function spark(svg, closes, w, h) {
+  const lo = Math.min(...closes), hi = Math.max(...closes), n = closes.length;
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`); svg.setAttribute("preserveAspectRatio", "none");
+  const pts = closes.map((v, i) => (i / (n - 1) * w).toFixed(1) + "," + (h - 2 - (v - lo) / (hi - lo || 1) * (h - 4)).toFixed(1)).join(" ");
+  const up = closes[n - 1] >= closes[0];
+  el("polyline", { points: pts, fill: "none", stroke: up ? "var(--up)" : "var(--down)", "stroke-width": 1.6, "vector-effect": "non-scaling-stroke", "stroke-linejoin": "round" }, svg);
 }
+const tagsHtml = s => s.setups.length ? s.setups.map(k => `<span class="tag ${SETUP[k] ? SETUP[k].c : ""}">${SETUP[k] ? SETUP[k].t : k}</span>`).join("") : `<span class="tag none">Koi setup nahi</span>`;
 
-function renderGrid(filter) {
-  const grid = document.getElementById("grid"); grid.textContent = "";
-  DATA.hits.filter(h => filter === "all" || h.setups.includes(filter)).forEach(h => {
-    const c = DATA.closes[h.symbol].closes, prev = c[c.length - 2], chg = (h.price - prev) / prev * 100;
-    const card = document.createElement("article"); card.className = "card";
-    card.innerHTML = `
-      <div class="card-top"><div style="min-width:0"><div class="sym">${h.symbol.replace(".NS", "")}</div><div class="name">${NAMES[h.symbol] || ""}</div></div>
-      <div style="text-align:right"><div class="price num">${inr(h.price)}</div><div class="chg num ${chg >= 0 ? "up" : "down"}">${chg >= 0 ? "+" : ""}${chg.toFixed(2)}% din mein</div></div></div>`;
-    const svg = el("svg", { class: "spark", role: "img", "aria-label": h.symbol + " ka 45 din ka chart" }); card.appendChild(svg); spark(svg, c);
-    const tags = document.createElement("div"); tags.className = "tags";
-    h.setups.forEach(s => { const t = document.createElement("span"); t.className = "tag " + (SETUP[s] ? SETUP[s][1] : ""); t.textContent = SETUP[s] ? SETUP[s][0] : s; tags.appendChild(t); });
-    card.appendChild(tags);
-    const rsi = document.createElement("div"); rsi.className = "rsi";
-    rsi.innerHTML = `<span>RSI</span><span class="rsi-track"><span class="rsi-mark" style="left:${h.rsi}%"></span></span><span class="rsi-val num ${h.rsi > 70 || h.rsi < 30 ? "hot" : ""}">${h.rsi.toFixed(1)}</span>`;
-    card.appendChild(rsi);
-    grid.appendChild(card);
+/* ---------- list view */
+function renderIndexStrip() {
+  const i = DATA.index, b = document.getElementById("idxStrip");
+  const shown = i.live ? i.live.price : i.last, ch = i.live ? i.live.change_pct : i.change_pct;
+  b.innerHTML = `<div><div class="label">NIFTY 50 INDEX</div><div class="val">${fmt(shown)}</div><div class="${ch >= 0 ? "up" : "down"} mono" style="font-size:.85rem;font-weight:700">${pct(ch)} ${i.live ? "· " + dmon(i.live.time.slice(0, 10)) : ""}</div></div>
+    <svg aria-hidden="true"></svg><div class="tags" style="justify-content:flex-end">${tagsHtml(i)}<span class="chev">›</span></div>`;
+  spark(b.querySelector("svg"), i.closes.slice(-60).concat(i.live ? [i.live.price] : []), 300, 44);
+  b.onclick = () => { location.hash = "NIFTY"; };
+}
+function renderChips() {
+  const c = { all: DATA.stocks.length, any: 0 };
+  DATA.stocks.forEach(s => { if (s.setups.length) c.any++; s.setups.forEach(k => c[k] = (c[k] || 0) + 1); });
+  const opts = [["all", "Sab"], ["any", "Setup wale"]].concat(Object.keys(SETUP).filter(k => c[k]).map(k => [k, SETUP[k].t]));
+  const box = document.getElementById("chips"); box.textContent = "";
+  opts.forEach(([k, t]) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.setAttribute("aria-pressed", k === FILTER);
+    b.innerHTML = `${t} <b>${c[k]}</b>`;
+    b.onclick = () => { FILTER = k; renderChips(); renderRows(); };
+    box.appendChild(b);
   });
 }
-function renderFilters() {
-  const counts = {}; DATA.hits.forEach(h => h.setups.forEach(s => counts[s] = (counts[s] || 0) + 1));
-  const box = document.getElementById("filters");
-  const opts = [["all", "Sab (" + DATA.hits.length + ")"]].concat(Object.keys(counts).map(s => [s, (SETUP[s] ? SETUP[s][0] : s) + " (" + counts[s] + ")"]));
-  opts.forEach(([k, lab], i) => {
-    const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = lab; b.setAttribute("aria-pressed", i === 0);
-    b.onclick = () => { box.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x === b)); renderGrid(k); };
+function renderRows() {
+  const q = document.getElementById("q").value.trim().toLowerCase(), sort = document.getElementById("sort").value;
+  let list = DATA.stocks.filter(s => FILTER === "all" || (FILTER === "any" ? s.setups.length : s.setups.includes(FILTER)))
+    .filter(s => !q || s.sym.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
+  const by = {
+    setup: (a, b) => b.setups.length - a.setups.length || (b.volume || 0) * b.last - (a.volume || 0) * a.last,
+    chg: (a, b) => b.change_pct - a.change_pct, chgd: (a, b) => a.change_pct - b.change_pct,
+    rsi: (a, b) => (b.rsi || 0) - (a.rsi || 0), name: (a, b) => a.sym.localeCompare(b.sym) };
+  list.sort(by[sort]);
+  const box = document.getElementById("rows"); box.textContent = "";
+  if (!list.length) { box.innerHTML = `<div class="empty">Koi share nahi mila.</div>`; return; }
+  list.forEach(s => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "item" + (s.setups.length ? " has" : ""); b.setAttribute("role", "listitem");
+    const rc = s.rsi > 70 ? "hot" : s.rsi < 30 ? "cold" : "";
+    b.innerHTML = `<div style="min-width:0"><div class="sym">${short(s.sym)}</div><div class="nm">${esc(s.name)}</div></div>
+      <svg aria-hidden="true"></svg>
+      <div class="px">${inr(s.last)}<small class="${s.change_pct >= 0 ? "up" : "down"}">${pct(s.change_pct)}</small></div>
+      <div class="rsi ${rc}" title="RSI">${s.rsi == null ? "–" : s.rsi.toFixed(0)}</div>
+      <div class="tags">${tagsHtml(s)}</div><span class="chev" aria-hidden="true">›</span>`;
+    b.setAttribute("aria-label", `${short(s.sym)}, ${s.setups.length ? s.setups.map(k => SETUP[k] ? SETUP[k].t : k).join(", ") : "koi setup nahi"}`);
+    spark(b.querySelector("svg"), s.closes.slice(-45), 110, 30);
+    b.onclick = () => { location.hash = short(s.sym); };
     box.appendChild(b);
   });
 }
 
-/* ---------- calculator */
-function calc() {
-  const v = id => parseFloat(document.getElementById(id).value);
-  const entry = v("cEntry"), stop = v("cStop"), target = v("cTarget"), risk = v("cRisk"), cash = v("cCash");
-  const row = document.getElementById("rRow"), note = document.getElementById("rNote"), lad = document.getElementById("ladder");
-  lad.textContent = "";
-  if (!(entry > 0 && stop > 0 && risk > 0 && cash > 0)) { document.getElementById("rShares").textContent = "–"; row.textContent = ""; note.textContent = "Saare khaane bharo."; return; }
-  if (stop >= entry) { document.getElementById("rShares").textContent = "0"; row.textContent = ""; note.innerHTML = '<span class="warn">Stop entry se neeche hona chahiye.</span>'; return; }
-  const perShare = entry - stop;
-  const byRisk = Math.floor(risk / perShare), byCash = Math.floor(cash / entry);
-  const shares = Math.max(0, Math.min(byRisk, byCash));
-  const reward = target > entry ? (target - entry) / perShare : null;
-  document.getElementById("rShares").textContent = shares.toLocaleString("en-IN");
-  row.innerHTML = `<span>Lagega <b>${inr(shares * entry, 0)}</b></span><span>Stop par loss <b>${inr(shares * perShare, 0)}</b></span>` +
-    (reward ? `<span>Target par fayda <b>${inr(shares * (target - entry), 0)}</b></span><span>Reward : Risk <b>${reward.toFixed(1)} : 1</b></span>` : "");
-  note.innerHTML = shares === 0 ? '<span class="warn">Stop bahut door hai: ek share ka risk bhi max loss se zyada hai.</span>'
-    : (byCash < byRisk ? "Account ka paisa kam pada, isliye shares paise se tay hue." : "Shares aapke max loss se tay hue: " + inr(risk, 0) + " ÷ " + inr(perShare) + " ek share ka risk.") +
-      (reward !== null && reward < 1 ? ' <span class="warn">Target, risk se chhota hai.</span>' : "");
-  // ladder
-  const lv = [stop, entry].concat(target > entry ? [target] : []); const lo = Math.min(...lv), hi = Math.max(...lv);
-  const Y = p => 150 - (p - lo) / (hi - lo || 1) * 130;
-  if (target > entry) el("rect", { x: 70, y: Y(target), width: 200, height: Y(entry) - Y(target), fill: "var(--up-soft)" }, lad);
-  el("rect", { x: 70, y: Y(entry), width: 200, height: Y(stop) - Y(entry), fill: "var(--down-soft)" }, lad);
-  [[stop, "Stop", "var(--down)"], [entry, "Entry", "var(--ink)"]].concat(target > entry ? [[target, "Target", "var(--up)"]] : []).forEach(([p, lab, col]) => {
-    el("line", { x1: 70, x2: 270, y1: Y(p), y2: Y(p), stroke: col, "stroke-width": 2 }, lad);
-    const a = el("text", { x: 62, y: Y(p) + 4, "text-anchor": "end", "font-size": 12, fill: col, "font-family": "var(--body)", "font-weight": 700 }, lad); a.textContent = lab;
-    const b = el("text", { x: 280, y: Y(p) + 4, "font-size": 12, fill: "var(--ink)", "font-family": "var(--mono)" }, lad); b.textContent = inr(p);
-  });
+/* ---------- detail view */
+function reasons(s) {
+  const out = [];
+  if (s.setups.includes("breakout_20d")) out.push(["", "20-din high toda", `${dmon(s.last_date)} ko close ${fmt(s.last)}, jo pichhle 20 din ke sabse unche close ${fmt(s.high20)} se upar hai. Matlab naya high bana.`]);
+  if (s.setups.includes("bull_flag")) out.push(["", "Bull flag", `Pehle tez chadhai hui (10 din mein ${s.run_pct.toFixed(1)}%), phir pichhle 5 din daam sirf ${s.range5_pct.toFixed(1)}% ke chhote daayre mein ruka. Jhande jaisa pattern.`]);
+  if (s.setups.includes("reclaim_ma20")) out.push(["g", "Average ke upar wapas", `Pichhle din daam 20-din average ke neeche tha. ${dmon(s.last_date)} ko ${fmt(s.last)} par band hua, average ${fmt(s.ma20)} ke upar.`]);
+  if (s.setups.includes("oversold")) out.push(["r", "Oversold", `RSI ${s.rsi.toFixed(1)} hai, 30 se neeche. Share kuch din se lagataar gira hai. Uchhal bhi sakta hai, aur bhi gir sakta hai.`]);
+  if (s.setups.includes("oversold_bounce")) out.push(["g", "Oversold bounce", `Pichhle din RSI ${s.rsi_prev.toFixed(1)} (30 se neeche) tha, aur aaj close upar hua.`]);
+  if (!out.length) {
+    const vsMa = s.last >= s.ma20 ? `20-din average (${fmt(s.ma20)}) ke upar hai` : `20-din average (${fmt(s.ma20)}) ke neeche hai`;
+    const toHi = (s.high20 / s.last - 1) * 100;
+    out.push(["plain", "Abhi koi setup nahi", `Close ${fmt(s.last)} ${vsMa}. 20-din high ${fmt(s.high20)} ${toHi > 0 ? toHi.toFixed(1) + "% upar hai" : "ke barabar hai"}. RSI ${s.rsi == null ? "–" : s.rsi.toFixed(1)}.`]);
+  }
+  if (s.rsi > 70) out.push(["r", "Dhyan: RSI 70 se upar", `RSI ${s.rsi.toFixed(1)} hai. Share bahut tezi se chadh chuka hai, aise mein palat bhi sakta hai.`]);
+  return out;
 }
-
-/* ---------- holidays + commands */
-function renderHol() {
-  const today = iso(istNow()); let nextDone = false; const box = document.getElementById("hol");
-  HOLIDAYS.forEach(([d, n]) => {
-    const div = document.createElement("div"); const past = d < today; const isNext = !past && !nextDone; if (isNext) nextDone = true;
-    div.className = "hday" + (past ? " past" : "") + (isNext ? " next" : "");
-    const dt = new Date(d + "T00:00:00Z");
-    div.innerHTML = `<span class="d">${dt.toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" })} · ${dt.toLocaleDateString("hi-IN", { weekday: "short", timeZone: "UTC" })}</span><span class="n">${n}</span>`;
-    box.appendChild(div);
-  });
-}
-const CMDS = [
-  ["Ek baar", "python3 ~/Desktop/day-trader-skill/trader-scanner/scan.py universe --nifty50"],
-  ["Subah 9:15 se pehle", "python3 ~/Desktop/day-trader-skill/trader-scanner/scan.py daily"],
-  ["9:35 ke baad", "python3 ~/Desktop/day-trader-skill/trader-scanner/scan.py orb --at 10:00"]];
-function renderCmds() {
-  const box = document.getElementById("cmds");
-  CMDS.forEach(([when, cmd], i) => {
-    const d = document.createElement("div"); d.className = "cmd";
-    d.innerHTML = `<div style="min-width:0"><div class="when">${when}</div><pre id="cmd${i}">${cmd}</pre></div>`;
-    const b = document.createElement("button"); b.type = "button"; b.textContent = "Copy";
-    b.onclick = () => {
-      navigator.clipboard.writeText(cmd).then(() => { b.textContent = "Copied"; setTimeout(() => b.textContent = "Copy", 1500); })
-        .catch(() => { const r = document.createRange(); r.selectNodeContents(document.getElementById("cmd" + i)); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "Select ho gaya"; });
-    };
-    d.appendChild(b); box.appendChild(d);
-  });
-}
-
-/* ---------- nifty index */
-function renderIndex() {
-  const I = INDEX, c = I.closes, live = I.live.price, last = c[c.length - 1];
-  const chg = (live - last) / last * 100;
-  document.getElementById("idxPrice").textContent = live.toLocaleString("en-IN", { minimumFractionDigits: 2 });
-  document.getElementById("idxChg").textContent = (chg >= 0 ? "+" : "") + chg.toFixed(2) + "%";
-  document.getElementById("idxChg").className = "chg num " + (chg >= 0 ? "up" : "down");
-  document.getElementById("idxSub").textContent = "2 Nov, " + I.live.time + " (Yahoo). 30 Oct ka close: " + last.toLocaleString("en-IN", { minimumFractionDigits: 2 }) + ".";
-  const tags = document.getElementById("idxTags");
-  const add = (txt, cls) => { const t = document.createElement("span"); t.className = "tag " + (cls || ""); t.textContent = txt; tags.appendChild(t); };
-  if (I.live_tags.length) I.live_tags.forEach(s => add((SETUP[s] ? SETUP[s][0] : s) + " · 2 Nov", SETUP[s] ? SETUP[s][1] : ""));
-  add(I.tags.length ? I.tags.map(s => SETUP[s][0]).join(", ") + " · 30 Oct" : "30 Oct ko koi setup nahi", "reclaim");
-  // chart
-  const svg = document.getElementById("idxChart"), W = 640, H = 240, L = 8, R = 70, T = 12, B = 22;
-  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  const all = c.concat([live]), n = all.length;
-  const ma = all.map((_, i) => i >= 19 ? all.slice(i - 19, i + 1).reduce((a, b) => a + b, 0) / 20 : null);
-  const hi20 = I.live_nums.high20, lo = Math.min(...all) * 0.997, hi = Math.max(...all.concat([hi20])) * 1.003;
+function bigChart(svg, s, tipEl) {
+  const W = 680, H = 260, L = 6, R = 64, T = 10, B = 24;
+  const c = s.closes, dates = s.dates.slice(), all = c.slice();
+  if (s.live) { all.push(s.live.price); dates.push(s.live.time.slice(0, 10)); }
+  const n = all.length, ma = all.map((_, i) => i >= 19 ? all.slice(i - 19, i + 1).reduce((a, b) => a + b, 0) / 20 : null);
+  const lo = Math.min(...all) * 0.995, hi = Math.max(...all.concat([s.high20])) * 1.005;
   const X = i => L + i / (n - 1) * (W - L - R), Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
-  [0.25, 0.5, 0.75].forEach(f => { const v = lo + (hi - lo) * f; el("line", { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: "var(--line)" }, svg);
-    const t = el("text", { x: W - R + 6, y: Y(v) + 4, "font-size": 10, fill: "var(--muted)", "font-family": "var(--mono)" }, svg); t.textContent = Math.round(v).toLocaleString("en-IN"); });
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.textContent = "";
+  for (let k = 0; k <= 4; k++) {
+    const v = lo + (hi - lo) * k / 4;
+    el("line", { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: "var(--line)" }, svg);
+    el("text", { x: W - R + 6, y: Y(v) + 4, "font-size": 10, fill: "var(--muted)", "font-family": "var(--mono)" }, svg).textContent = fmt(v, v > 5000 ? 0 : 1);
+  }
   const pts = c.map((v, i) => X(i).toFixed(1) + "," + Y(v).toFixed(1)).join(" ");
-  el("polygon", { points: `${X(0)},${H - B} ${pts} ${X(c.length - 1)},${H - B}`, fill: "var(--accent-soft)", opacity: .55 }, svg);
+  el("polygon", { points: `${X(0)},${H - B} ${pts} ${X(c.length - 1)},${H - B}`, fill: "var(--accent-soft)", opacity: .6 }, svg);
   el("polyline", { points: ma.map((v, i) => v == null ? null : X(i).toFixed(1) + "," + Y(v).toFixed(1)).filter(Boolean).join(" "), fill: "none", stroke: "var(--up)", "stroke-width": 1.5 }, svg);
-  el("line", { x1: X(n - 21), x2: X(n - 1), y1: Y(hi20), y2: Y(hi20), stroke: "var(--muted)", "stroke-width": 1.4, "stroke-dasharray": "5 4" }, svg);
-  const ht = el("text", { x: W - R + 6, y: Y(hi20) + 4, "font-size": 10, fill: "var(--ink)", "font-family": "var(--mono)", "font-weight": 600 }, svg); ht.textContent = Math.round(hi20).toLocaleString("en-IN");
+  el("line", { x1: X(c.length - 21), x2: X(c.length - 1), y1: Y(s.high20), y2: Y(s.high20), stroke: "var(--muted)", "stroke-width": 1.4, "stroke-dasharray": "5 4" }, svg);
   el("polyline", { points: pts, fill: "none", stroke: "var(--accent)", "stroke-width": 2.2, "stroke-linejoin": "round" }, svg);
-  el("line", { x1: X(c.length - 1), x2: X(n - 1), y1: Y(last), y2: Y(live), stroke: "var(--accent)", "stroke-width": 2, "stroke-dasharray": "3 3" }, svg);
-  el("circle", { cx: X(n - 1), cy: Y(live), r: 5, fill: "var(--paper)", stroke: "var(--accent)", "stroke-width": 2.5 }, svg);
-  [[0, I.dates[0]], [c.length - 1, I.dates[I.dates.length - 1]]].forEach(([i, d], k) => {
-    const t = el("text", { x: X(i), y: H - 6, "text-anchor": k ? "end" : "start", "font-size": 10, fill: "var(--muted)", "font-family": "var(--mono)" }, svg);
-    t.textContent = new Date(d + "T00:00:00Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" }); });
-  // stats
-  const f = v => v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const stats = [["20-din high", f(hi20)], ["20-din average", f(I.live_nums.ma20)], ["RSI (14)", I.live_nums.rsi.toFixed(1)],
-    ["5 din ka badlav", ((live / c[c.length - 5] - 1) * 100).toFixed(2) + "%"], ["6 mahine ka high", f(I.hi6)], ["6 mahine ka low", f(I.lo6)]];
-  document.getElementById("idxStats").innerHTML = stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
-  // ORB picture (2 Nov, from entry.py)
-  const o = document.getElementById("orbSvg"), oLo = 23212.65, oHi = 23292.45, trig = 23297.75, at1025 = 23317.10;
-  const oY = v => 100 - (v - 23195) / (23330 - 23195) * 90;
-  el("rect", { x: 20, y: oY(oHi), width: 80, height: oY(oLo) - oY(oHi), fill: "var(--accent-soft)", stroke: "var(--accent)" }, o);
-  el("line", { x1: 20, x2: 290, y1: oY(oHi), y2: oY(oHi), stroke: "var(--accent)", "stroke-dasharray": "4 3" }, o);
-  // only the real points: the 9:35 bar's close (trigger) and the 10:25 bar's close; x is minutes after 9:15
-  const oX = m => 20 + m / 75 * 260;
-  el("line", { x1: oX(25), x2: oX(75), y1: oY(trig), y2: oY(at1025), stroke: "var(--ink)", "stroke-width": 1.5, "stroke-dasharray": "3 3" }, o);
-  el("circle", { cx: oX(75), cy: oY(at1025), r: 4, fill: "var(--ink)" }, o);
-  el("circle", { cx: oX(25), cy: oY(trig), r: 5, fill: "var(--up)" }, o);
-  const lab = (x, y, s, col, anchor) => { const t = el("text", { x, y, "font-size": 10, fill: col, "font-family": "var(--mono)", "text-anchor": anchor || "start" }, o); t.textContent = s; };
-  lab(60, 116, "9:15–9:30", "var(--muted)", "middle");
-  lab(290, oY(oHi) + 14, "range high " + f(oHi), "var(--accent)", "end");
-  lab(24, oY(oLo) + 14, f(oLo), "var(--muted)");
-  lab(136, oY(trig) - 10, "9:40 · " + f(trig), "var(--up)");
+  if (s.live) {
+    el("line", { x1: X(c.length - 1), x2: X(n - 1), y1: Y(c[c.length - 1]), y2: Y(s.live.price), stroke: "var(--accent)", "stroke-width": 2, "stroke-dasharray": "3 3" }, svg);
+    el("circle", { cx: X(n - 1), cy: Y(s.live.price), r: 4.5, fill: "var(--card)", stroke: "var(--accent)", "stroke-width": 2.5 }, svg);
+  } else el("circle", { cx: X(n - 1), cy: Y(c[c.length - 1]), r: 4, fill: "var(--accent)" }, svg);
+  [0, Math.floor((n - 1) / 2), n - 1].forEach((i, k) => el("text", { x: X(i), y: H - 6, "text-anchor": ["start", "middle", "end"][k], "font-size": 10, fill: "var(--muted)", "font-family": "var(--mono)" }, svg).textContent = dmon(dates[i]));
+  // hover / touch: show the close of the nearest day
+  const cross = el("line", { y1: T, y2: H - B, stroke: "var(--ink)", "stroke-width": 1, opacity: 0 }, svg);
+  const dot = el("circle", { r: 4, fill: "var(--ink)", opacity: 0 }, svg);
+  const show = e => {
+    const r = svg.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W;
+    const i = Math.max(0, Math.min(n - 1, Math.round((x - L) / (W - L - R) * (n - 1))));
+    cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i)); cross.setAttribute("opacity", .35);
+    dot.setAttribute("cx", X(i)); dot.setAttribute("cy", Y(all[i])); dot.setAttribute("opacity", 1);
+    const prev = i ? all[i - 1] : null;
+    tipEl.innerHTML = `${dmon(dates[i])}: <b>${fmt(all[i])}</b>` + (prev ? ` <span class="${all[i] >= prev ? "up" : "down"}">${pct((all[i] / prev - 1) * 100)}</span>` : "") +
+      (s.live && i === n - 1 ? ` <span class="muted">(${s.live.time.slice(11)} IST, Yahoo)</span>` : "");
+  };
+  svg.onpointermove = show; svg.onpointerdown = show;
+  svg.onpointerleave = () => { cross.setAttribute("opacity", 0); dot.setAttribute("opacity", 0); tipEl.innerHTML = `<span class="muted">Chart par ungli ya mouse rakho, us din ka close dikhega.</span>`; };
+  svg.onpointerleave();
+}
+function renderDetail(s) {
+  const v = document.getElementById("detailView"), isIdx = s.sym === "^NSEI";
+  const shown = s.live ? s.live.price : s.last, ch = s.live ? s.live.change_pct : s.change_pct;
+  v.innerHTML = `<div style="display:grid;gap:14px">
+    <button class="back" type="button" id="back">‹ Wapas list par</button>
+    <div class="dhead">
+      <div><h2>${short(s.sym)}</h2><p class="muted">${esc(s.name)}${isIdx ? " · index" : ""}</p><div class="tags" style="margin-top:8px">${tagsHtml(s)}</div></div>
+      <div class="dprice"><div class="big">${isIdx ? "" : "₹"}${fmt(shown)}</div>
+        <div class="${ch >= 0 ? "up" : "down"} mono" style="font-weight:700">${pct(ch)}</div>
+        <div class="muted" style="font-size:.78rem">${s.live ? s.live.time.slice(0, 10) + " " + s.live.time.slice(11) + " IST (Yahoo)" : dmon(s.last_date) + " ka close"}</div></div>
+    </div>
+    <div class="panel"><h3>Setup kyun bana? (seedhi bhasha mein)</h3><div class="why" id="why"></div></div>
+    <div class="grid2">
+      <div class="panel">
+        <h3>${s.closes.length} din ka chart</h3>
+        <svg class="chart" id="chart" role="img" aria-label="${short(s.sym)} ka chart"></svg>
+        <div class="tip" id="tip"></div>
+        <div class="key">
+          <span><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--accent)" stroke-width="2"/></svg>Roz ka close</span>
+          <span><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>20-din high</span>
+          <span><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--up)" stroke-width="1.5"/></svg>20-din average</span>
+          ${s.live ? `<span><svg width="12" height="12"><circle cx="6" cy="6" r="4" style="fill:var(--card);stroke:var(--accent)" stroke-width="2"/></svg>Sabse naya daam</span>` : ""}
+        </div>
+      </div>
+      <div style="display:grid;gap:14px">
+        <div class="panel"><h3>Ahem levels</h3><dl class="stats" id="stats"></dl></div>
+        <div class="panel"><h3>RSI ${s.rsi == null ? "–" : s.rsi.toFixed(1)}</h3>
+          <div class="meter"><i style="left:${s.rsi || 0}%"></i></div>
+          <div class="meterlab"><span>0 · bahut gira</span><span>30</span><span>70</span><span>100 · bahut chadha</span></div></div>
+        ${isIdx ? "" : `<div class="panel calc"><h3>Kitne shares?</h3>
+          <div class="f">
+            <label>Entry (₹)<input id="ce" type="number" step="0.05" inputmode="decimal"></label>
+            <label>Stop-loss (₹)<input id="cs" type="number" step="0.05" inputmode="decimal"></label>
+            <label>Max loss (₹)<input id="cr" type="number" step="50" value="500" inputmode="decimal"></label>
+            <label>Account (₹)<input id="cc" type="number" step="1000" value="50000" inputmode="decimal"></label>
+          </div>
+          <div class="shares" id="csh"></div><div class="out" id="cout"></div>
+          <p class="note">Entry ${dmon(s.last_date)} ka close hai, stop 1% neeche sirf example. Ye hisaab hai, salah nahi.</p></div>`}
+      </div>
+    </div>
+    ${isIdx ? `<div class="panel"><h3>Options ke liye</h3><p class="muted" style="font-size:.9rem">Index ko seedha kharida nahi ja sakta; Nifty futures ya options mein trade hota hai. Ye levels chart padhne ke liye hain. Option ki keemat waqt ke saath ghat'ti hai, khaaskar expiry ke din, aur buyer ka poora premium doob sakta hai.</p></div>` : ""}
+  </div>`;
+  document.getElementById("back").onclick = () => { history.length > 1 && location.hash ? history.back() : (location.hash = ""); };
+  document.getElementById("why").innerHTML = reasons(s).map(([c, t, d]) => `<div class="${c}"><b>${t}</b><span>${d}</span></div>`).join("");
+  const st = [["20-din high", fmt(s.high20)], ["20-din average", fmt(s.ma20)], ["6 mahine ka high", fmt(s.high_6m)], ["6 mahine ka low", fmt(s.low_6m)],
+    ["5 din mein", pct(s.change_5d)], ["20 din mein", pct(s.change_20d)]];
+  document.getElementById("stats").innerHTML = st.map(([k, val]) => `<div><dt>${k}</dt><dd>${val}</dd></div>`).join("");
+  bigChart(document.getElementById("chart"), s, document.getElementById("tip"));
+  if (!isIdx) {
+    const r05 = x => Math.round(x * 20) / 20;
+    document.getElementById("ce").value = s.last; document.getElementById("cs").value = r05(s.last * 0.99);
+    const calc = () => {
+      const g = id => parseFloat(document.getElementById(id).value);
+      const e = g("ce"), sl = g("cs"), risk = g("cr"), cash = g("cc"), out = document.getElementById("cout"), sh = document.getElementById("csh");
+      if (!(e > 0 && sl > 0 && risk > 0 && cash > 0)) { sh.textContent = "–"; out.textContent = "Saare khaane bharo."; return; }
+      if (sl >= e) { sh.textContent = "0"; out.innerHTML = `<span class="down"><b>Stop entry se neeche hona chahiye.</b></span>`; return; }
+      const per = e - sl, n = Math.max(0, Math.min(Math.floor(risk / per), Math.floor(cash / e)));
+      sh.textContent = n.toLocaleString("en-IN") + " shares";
+      out.innerHTML = n ? `Lagega <b>${inr(n * e, 0)}</b> · stop par loss <b>${inr(n * per, 0)}</b> · 2 guna target <b>${inr(e + 2 * per)}</b> par fayda <b>${inr(n * 2 * per, 0)}</b>`
+        : `<span class="down"><b>Stop bahut door hai: ek share ka risk bhi max loss se zyada.</b></span>`;
+    };
+    document.querySelectorAll(".calc input").forEach(i => i.addEventListener("input", calc)); calc();
+  }
 }
 
-renderIndex(); renderFilters(); renderGrid("all"); renderHol(); renderCmds();
-/* share picker: fills entry with the 30 Oct close, an example stop 1% below and a 2R target */
-const r05 = x => Math.round(x * 20) / 20;
-function pickShare() {
-  const h = DATA.hits.find(x => x.symbol === document.getElementById("cSym").value); if (!h) return;
-  const stop = r05(h.price * 0.99), target = r05(h.price + 2 * (h.price - stop));
-  document.getElementById("cEntry").value = h.price; document.getElementById("cStop").value = stop; document.getElementById("cTarget").value = target;
-  document.getElementById("calcFoot").textContent = (NAMES[h.symbol] || h.symbol) + ": entry 30 Oct ka close " + inr(h.price) +
-    ". Stop 1% neeche aur target uska 2 guna sirf example hai; asli stop /trader-exit se tay karo. Ye hisaab hai, salah nahi.";
-  calc();
+/* ---------- routing: #INFY opens a share, empty hash shows the list */
+function route() {
+  if (!DATA) return;
+  const h = decodeURIComponent(location.hash.slice(1)).toUpperCase();
+  const s = h === "NIFTY" ? DATA.index : DATA.stocks.find(x => short(x.sym) === h);
+  document.getElementById("listView").hidden = !!s;
+  document.getElementById("detailView").hidden = !s;
+  if (s) { renderDetail(s); window.scrollTo(0, 0); document.title = short(s.sym) + " · Nifty 50 Scanner"; }
+  else document.title = "Nifty 50 Scanner";
 }
-(() => { const s = document.getElementById("cSym");
-  DATA.hits.forEach(h => { const o = document.createElement("option"); o.value = h.symbol; o.textContent = h.symbol.replace(".NS", "") + " · " + (NAMES[h.symbol] || "") + " · " + inr(h.price); s.appendChild(o); });
-  s.addEventListener("change", pickShare); })();
-document.getElementById("calcForm").addEventListener("input", e => { if (e.target.id !== "cSym") calc(); });
-pickShare();
-document.getElementById("calcForm").addEventListener("submit", e => e.preventDefault());
-calc(); tick(); setInterval(tick, 1000);
+
+fetch("data.json", { cache: "no-store" }).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }).then(d => {
+  DATA = d;
+  const withSetup = d.stocks.filter(s => s.setups.length).length;
+  document.getElementById("asof").textContent = `${dmon(d.as_of)} ke close tak · ${d.stocks.length} mein se ${withSetup} mein setup · update ${d.generated_ist} IST`;
+  renderIndexStrip(); renderChips(); renderRows(); route();
+}).catch(e => {
+  document.getElementById("asof").textContent = "Data load nahi hua (" + e.message + "). Page refresh karo.";
+});
+document.getElementById("q").addEventListener("input", renderRows);
+document.getElementById("sort").addEventListener("change", renderRows);
+window.addEventListener("hashchange", route);
+tick(); setInterval(tick, 15000);
 </script>
-
 </body>
 </html>

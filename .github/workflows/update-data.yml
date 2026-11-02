@@ -1,0 +1,37 @@
+name: Update scanner data
+
+on:
+  schedule:
+    - cron: "0 3 * * 1-5"    # 08:30 IST, before the open
+    - cron: "30 10 * * 1-5"  # 16:00 IST, after the close
+    - cron: "0 14 * * 1-5"   # 19:30 IST, once Yahoo has filled the day's close
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build data.json
+        run: python3 scripts/build_data.py
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- data.json; then
+            echo "data.json unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          git commit -m "Update scanner data"
+          git push
