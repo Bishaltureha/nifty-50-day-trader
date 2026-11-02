@@ -33,6 +33,7 @@ button { font: inherit; color: inherit }
 .wrap { max-width: 1080px; margin: 0 auto; padding-block: 18px 48px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
   display: grid; gap: 18px }
+.wrap > *, main > div > *, .controls > *, .idx > *, .item > * { min-width: 0 }
 h1, h2 { font-family: var(--display); margin: 0; line-height: 1.1; text-wrap: balance }
 h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 800; letter-spacing: -.01em }
 h2 { font-size: clamp(1.3rem, 3vw, 1.7rem); font-weight: 800 }
@@ -75,7 +76,7 @@ select.sort { font: 600 .85rem var(--body); padding: 9px 10px; border-radius: 8p
 
 /* list */
 .list { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden }
-.lhead, .item { display: grid; grid-template-columns: minmax(0, 1.6fr) 110px minmax(0, .9fr) 70px minmax(0, 1.7fr) 18px; gap: 12px; align-items: center; padding: 10px 14px }
+.lhead, .item { display: grid; grid-template-columns: minmax(0, 1.5fr) 92px 110px minmax(0, .9fr) minmax(0, 1.8fr) 18px; gap: 12px; align-items: center; padding: 10px 14px }
 .lhead { font: 700 .7rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); background: var(--band) }
 .item { width: 100%; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; cursor: pointer }
 .item:last-child { border-bottom: 0 }
@@ -85,8 +86,17 @@ select.sort { font: 600 .85rem var(--body); padding: 9px 10px; border-radius: 8p
 .nm { font-size: .78rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .item svg { width: 110px; height: 30px; display: block }
 .px { font: 600 .92rem var(--mono); text-align: right } .px small { display: block; font-size: .76rem; font-weight: 600 }
-.rsi { font: 700 .82rem var(--mono); text-align: right }
-.rsi.hot { color: var(--down) } .rsi.cold { color: var(--down) }
+.str { display: grid; gap: 4px } .str b { font: 800 1rem/1 var(--mono) }
+.str i { display: block; height: 5px; border-radius: 3px; background: var(--band); overflow: hidden }
+.str i span { display: block; height: 100%; background: var(--up) }
+.str.mid i span { background: var(--accent) } .str.low i span { background: var(--muted) }
+.tag.orb { background: var(--ink); color: var(--paper) }
+.parts { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none }
+.parts li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: .9rem }
+.parts li b { font: 700 .9rem var(--mono); text-align: right } .parts li.neg b { color: var(--down) }
+.parts .total { border-top: 1px solid var(--line); padding-top: 6px; font-weight: 700 }
+.orbbox { display: grid; gap: 4px; padding: 12px; border-radius: 10px; background: var(--band) }
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--muted) }
 .tags { display: flex; flex-wrap: wrap; gap: 5px }
 .tag { font: 700 .72rem/1 var(--body); padding: 5px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); white-space: nowrap }
 .tag.g { background: var(--up-soft); color: var(--up) } .tag.r { background: var(--down-soft); color: var(--down) }
@@ -94,9 +104,9 @@ select.sort { font: 600 .85rem var(--body); padding: 9px 10px; border-radius: 8p
 .chev { color: var(--muted); font: 700 1rem var(--mono) }
 @media (max-width: 720px) {
   .lhead { display: none }
-  .item { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "a c" "e e"; row-gap: 8px }
-  .item > :nth-child(1) { grid-area: a } .item > :nth-child(2), .item > :nth-child(4), .item > :nth-child(6) { display: none }
-  .item > :nth-child(3) { grid-area: c } .item > :nth-child(5) { grid-area: e }
+  .item { grid-template-columns: minmax(0, 1fr) 56px 96px; grid-template-areas: "a b c" "e e e"; row-gap: 8px; column-gap: 10px }
+  .item > :nth-child(1) { grid-area: a } .item > :nth-child(2) { grid-area: b } .item > :nth-child(3), .item > :nth-child(6) { display: none }
+  .item > :nth-child(4) { grid-area: c } .item > :nth-child(5) { grid-area: e }
 }
 .empty { padding: 24px; text-align: center; color: var(--muted) }
 .note { font-size: .82rem; color: var(--muted) }
@@ -152,6 +162,7 @@ footer { font-size: .8rem; color: var(--muted); border-top: 1px solid var(--line
         <div class="row2">
           <input class="search" id="q" type="search" placeholder="Share dhoondho: INFY, Reliance…" aria-label="Share dhoondho">
           <select class="sort" id="sort" aria-label="Kram">
+            <option value="strength">Sabse strong pehle</option>
             <option value="setup">Setup wale pehle</option>
             <option value="chg">Aaj sabse zyada upar</option>
             <option value="chgd">Aaj sabse zyada neeche</option>
@@ -161,10 +172,10 @@ footer { font-size: .8rem; color: var(--muted); border-top: 1px solid var(--line
         </div>
       </div>
       <div class="list" role="list">
-        <div class="lhead" aria-hidden="true"><span>Share</span><span>45 din</span><span style="text-align:right">Close</span><span style="text-align:right">RSI</span><span>Setup</span><span></span></div>
+        <div class="lhead" aria-hidden="true"><span>Share</span><span>Strength</span><span>45 din</span><span style="text-align:right">Daam</span><span>Setup</span><span></span></div>
         <div id="rows"></div>
       </div>
-      <p class="note">Kisi bhi share par click karo, uski poori detail khulegi. Narangi patti wale shares mein koi setup bana hai. Setup ek pattern hai, kharidne ki salah nahi.</p>
+      <p class="note">Kisi bhi share par click karo, uski poori detail khulegi. <b>Strength</b> 0 se 100 ka score hai: setups, trend, RSI aur aaj ka move jod kar. Kaale <span class="tag orb">ORB</span> tag ka matlab: aaj 9:15–9:30 ki range ke upar 5-min close aaya. Score aur setup pattern hain, kharidne ki salah nahi.</p>
     </div>
   </main>
 
@@ -187,6 +198,12 @@ const SETUP = {
   oversold: { t: "Oversold", c: "r" },
   oversold_bounce: { t: "Oversold bounce", c: "g" },
 };
+const PART = {
+  orb: "Aaj opening range ke upar nikla (ORB)", breakout_20d: "Setup: 20-din high toda", bull_flag: "Setup: bull flag",
+  reclaim_ma20: "Setup: average ke upar wapas", oversold_bounce: "Setup: oversold bounce",
+  above_ma20: "Daam 20-din average ke upar", change_20d: "20 din ka badlav (zyada se zyada ±10)",
+  rsi_healthy: "RSI 50–70: achhi tezi, zyada garam nahi", rsi_neutral: "RSI 40–50", rsi_hot: "RSI 70 se upar: bahut garam, isliye kam point",
+  today_up: "Aaj ka badhaav (Yahoo ka latest daam)" };
 const NS = "http://www.w3.org/2000/svg", STYLED = new Set(["fill", "stroke", "font-family"]);
 const el = (tag, attrs = {}, parent) => {
   const e = document.createElementNS(NS, tag);
@@ -219,7 +236,12 @@ function spark(svg, closes, w, h) {
   const up = closes[n - 1] >= closes[0];
   el("polyline", { points: pts, fill: "none", stroke: up ? "var(--up)" : "var(--down)", "stroke-width": 1.6, "vector-effect": "non-scaling-stroke", "stroke-linejoin": "round" }, svg);
 }
-const tagsHtml = s => s.setups.length ? s.setups.map(k => `<span class="tag ${SETUP[k] ? SETUP[k].c : ""}">${SETUP[k] ? SETUP[k].t : k}</span>`).join("") : `<span class="tag none">Koi setup nahi</span>`;
+const tagsHtml = s => {
+  const t = (s.orb ? `<span class="tag orb" title="Aaj ${s.orb.at} par range ke upar">ORB ${s.orb.at.replace(" AM", "").replace(" PM", "")}</span>` : "") +
+    s.setups.map(k => `<span class="tag ${SETUP[k] ? SETUP[k].c : ""}">${SETUP[k] ? SETUP[k].t : k}</span>`).join("");
+  return t || `<span class="tag none">Koi setup nahi</span>`;
+};
+const strHtml = s => `<div class="str ${s.strength >= 60 ? "" : s.strength >= 35 ? "mid" : "low"}" title="Strength ${s.strength}/100"><b>${s.strength}</b><i><span style="width:${s.strength}%"></span></i></div>`;
 
 /* ---------- list view */
 function renderIndexStrip() {
@@ -231,9 +253,9 @@ function renderIndexStrip() {
   b.onclick = () => { location.hash = "NIFTY"; };
 }
 function renderChips() {
-  const c = { all: DATA.stocks.length, any: 0 };
-  DATA.stocks.forEach(s => { if (s.setups.length) c.any++; s.setups.forEach(k => c[k] = (c[k] || 0) + 1); });
-  const opts = [["all", "Sab"], ["any", "Setup wale"]].concat(Object.keys(SETUP).filter(k => c[k]).map(k => [k, SETUP[k].t]));
+  const c = { all: DATA.stocks.length, any: 0, orb: 0 };
+  DATA.stocks.forEach(s => { if (s.setups.length || s.orb) c.any++; if (s.orb) c.orb++; s.setups.forEach(k => c[k] = (c[k] || 0) + 1); });
+  const opts = [["all", "Sab"], ["any", "Setup wale"]].concat(c.orb ? [["orb", "Aaj ORB"]] : []).concat(Object.keys(SETUP).filter(k => c[k]).map(k => [k, SETUP[k].t]));
   const box = document.getElementById("chips"); box.textContent = "";
   opts.forEach(([k, t]) => {
     const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.setAttribute("aria-pressed", k === FILTER);
@@ -244,10 +266,11 @@ function renderChips() {
 }
 function renderRows() {
   const q = document.getElementById("q").value.trim().toLowerCase(), sort = document.getElementById("sort").value;
-  let list = DATA.stocks.filter(s => FILTER === "all" || (FILTER === "any" ? s.setups.length : s.setups.includes(FILTER)))
+  let list = DATA.stocks.filter(s => FILTER === "all" || (FILTER === "any" ? s.setups.length || s.orb : FILTER === "orb" ? s.orb : s.setups.includes(FILTER)))
     .filter(s => !q || s.sym.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
   const by = {
-    setup: (a, b) => b.setups.length - a.setups.length || (b.volume || 0) * b.last - (a.volume || 0) * a.last,
+    strength: (a, b) => b.strength - a.strength || b.change_pct - a.change_pct,
+    setup: (a, b) => (b.setups.length + !!b.orb) - (a.setups.length + !!a.orb) || b.strength - a.strength,
     chg: (a, b) => b.change_pct - a.change_pct, chgd: (a, b) => a.change_pct - b.change_pct,
     rsi: (a, b) => (b.rsi || 0) - (a.rsi || 0), name: (a, b) => a.sym.localeCompare(b.sym) };
   list.sort(by[sort]);
@@ -255,13 +278,13 @@ function renderRows() {
   if (!list.length) { box.innerHTML = `<div class="empty">Koi share nahi mila.</div>`; return; }
   list.forEach(s => {
     const b = document.createElement("button"); b.type = "button"; b.className = "item" + (s.setups.length ? " has" : ""); b.setAttribute("role", "listitem");
-    const rc = s.rsi > 70 ? "hot" : s.rsi < 30 ? "cold" : "";
+    const p = s.live ? s.live.price : s.last, pc = s.live ? s.live.change_pct : s.change_pct;
     b.innerHTML = `<div style="min-width:0"><div class="sym">${short(s.sym)}</div><div class="nm">${esc(s.name)}</div></div>
+      ${strHtml(s)}
       <svg aria-hidden="true"></svg>
-      <div class="px">${inr(s.last)}<small class="${s.change_pct >= 0 ? "up" : "down"}">${pct(s.change_pct)}</small></div>
-      <div class="rsi ${rc}" title="RSI">${s.rsi == null ? "–" : s.rsi.toFixed(0)}</div>
+      <div class="px">${inr(p)}<small class="${pc >= 0 ? "up" : "down"}">${pct(pc)}</small></div>
       <div class="tags">${tagsHtml(s)}</div><span class="chev" aria-hidden="true">›</span>`;
-    b.setAttribute("aria-label", `${short(s.sym)}, ${s.setups.length ? s.setups.map(k => SETUP[k] ? SETUP[k].t : k).join(", ") : "koi setup nahi"}`);
+    b.setAttribute("aria-label", `${short(s.sym)}, strength ${s.strength}, ${s.setups.length || s.orb ? (s.orb ? "ORB, " : "") + s.setups.map(k => SETUP[k] ? SETUP[k].t : k).join(", ") : "koi setup nahi"}`);
     spark(b.querySelector("svg"), s.closes.slice(-45), 110, 30);
     b.onclick = () => { location.hash = short(s.sym); };
     box.appendChild(b);
@@ -334,7 +357,12 @@ function renderDetail(s) {
         <div class="${ch >= 0 ? "up" : "down"} mono" style="font-weight:700">${pct(ch)}</div>
         <div class="muted" style="font-size:.78rem">${s.live ? s.live.time.slice(0, 10) + " " + s.live.time.slice(11) + " IST (Yahoo)" : dmon(s.last_date) + " ka close"}</div></div>
     </div>
-    <div class="panel"><h3>Setup kyun bana? (seedhi bhasha mein)</h3><div class="why" id="why"></div></div>
+    <div class="panel"><h3>Setup kyun bana? (seedhi bhasha mein)</h3><div class="why" id="why"></div>
+      ${s.orb ? `<div class="orbbox"><b>Aaj ka ORB: ${s.orb.at}</b><span style="font-size:.9rem">9:15–9:30 ki range ${fmt(s.orb.or_low)} se ${fmt(s.orb.or_high)} thi. ${s.orb.at} par 5-min bar ${fmt(s.orb.price)} par iske upar band hua (+${s.orb.pct_over}%).</span></div>` : ""}</div>
+    <div class="panel"><h3>Strength ${s.strength}/100: ye score kaise bana</h3>
+      <ul class="parts">${s.strength_parts.map(([p, k]) => `<li class="${p < 0 ? "neg" : ""}"><b>${p > 0 ? "+" : ""}${p}</b><span>${PART[k] || k}</span></li>`).join("")}
+      <li class="total"><b>${s.strength}</b><span>Kul (0 se 100 ke beech)</span></li></ul>
+      <p class="note">Score batata hai chart kitni tezi se upar ja raha hai. Ye aage ka andaaza nahi hai.</p></div>
     <div class="grid2">
       <div class="panel">
         <h3>${s.closes.length} din ka chart</h3>
@@ -399,14 +427,33 @@ function route() {
   else document.title = "Nifty 50 Scanner";
 }
 
-fetch("data.json", { cache: "no-store" }).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }).then(d => {
-  DATA = d;
-  const withSetup = d.stocks.filter(s => s.setups.length).length;
-  document.getElementById("asof").textContent = `${dmon(d.as_of)} ke close tak · ${d.stocks.length} mein se ${withSetup} mein setup · update ${d.generated_ist} IST`;
-  renderIndexStrip(); renderChips(); renderRows(); route();
-}).catch(e => {
-  document.getElementById("asof").textContent = "Data load nahi hua (" + e.message + "). Page refresh karo.";
-});
+function ago(iso) {
+  const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  return m < 1 ? "abhi" : m < 60 ? m + " min pehle" : Math.floor(m / 60) + " ghante pehle";
+}
+function header() {
+  if (!DATA) return;
+  const d = DATA, n = d.stocks.filter(s => s.setups.length || s.orb).length, o = d.stocks.filter(s => s.orb).length;
+  const orb = d.orb_as_of === "pre-open" ? "ORB 9:35 ke baad" : d.orb_as_of === "closed" || d.orb_as_of === "unavailable" ? "" :
+    `aaj ${o} ORB (${d.orb_as_of.slice(11)} tak)`;
+  document.getElementById("asof").textContent = `${dmon(d.as_of)} ke close tak · ${d.stocks.length} mein se ${n} mein setup` +
+    (orb ? " · " + orb : "") + ` · scan ${ago(d.generated_at)}`;
+}
+function load(first) {
+  return fetch("data.json?t=" + Date.now(), { cache: "no-store" }).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }).then(d => {
+    const changed = !DATA || d.generated_at !== DATA.generated_at;
+    DATA = d; header();
+    if (!changed) return;
+    renderIndexStrip(); renderChips(); renderRows();
+    // an open share page is left alone on a refresh, so a half-typed calculator is not wiped
+    if (first || document.getElementById("detailView").hidden) route();
+  }).catch(e => {
+    if (first) document.getElementById("asof").textContent = "Data load nahi hua (" + e.message + "). Page refresh karo.";
+  });
+}
+load(true);
+setInterval(() => load(false), 5 * 60e3);
+setInterval(header, 60e3);
 document.getElementById("q").addEventListener("input", renderRows);
 document.getElementById("sort").addEventListener("change", renderRows);
 window.addEventListener("hashchange", route);
