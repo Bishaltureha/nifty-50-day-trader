@@ -154,7 +154,7 @@ section { display: grid; gap: 20px; min-width: 0 }
 .form { display: grid; gap: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px }
 .field { display: grid; gap: 4px }
 .field label { font-size: .82rem; color: var(--muted) }
-.field input { font: 600 1rem var(--mono); padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); width: 100% }
+.field input, .field select { font: 600 1rem var(--mono); padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); width: 100% }
 .result { display: grid; gap: 14px }
 .big { font: 800 clamp(2.4rem, 7vw, 3.6rem)/1 var(--display) }
 .result .row { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: .9rem; color: var(--muted) }
@@ -367,9 +367,10 @@ body{margin:0}[hidden]{display:none!important}img{max-width:100%}
     </div>
     <div class="calc">
       <form class="form" id="calcForm">
+        <div class="field"><label for="cSym">Share chuno (scan wale 16 mein se)</label><select id="cSym"></select></div>
         <div class="field"><label for="cEntry">Entry price (₹)</label><input id="cEntry" type="number" step="0.05" min="0" value="1185" inputmode="decimal"></div>
-        <div class="field"><label for="cStop">Stop-loss (₹)</label><input id="cStop" type="number" step="0.05" min="0" value="1172" inputmode="decimal"></div>
-        <div class="field"><label for="cTarget">Target (₹)</label><input id="cTarget" type="number" step="0.05" min="0" value="1211" inputmode="decimal"></div>
+        <div class="field"><label for="cStop">Stop-loss (₹)</label><input id="cStop" type="number" step="0.05" min="0" value="1173.15" inputmode="decimal"></div>
+        <div class="field"><label for="cTarget">Target (₹)</label><input id="cTarget" type="number" step="0.05" min="0" value="1208.85" inputmode="decimal"></div>
         <div class="field"><label for="cRisk">Ek trade mein max loss (₹)</label><input id="cRisk" type="number" step="50" min="0" value="500" inputmode="decimal"></div>
         <div class="field"><label for="cCash">Account mein paisa (₹)</label><input id="cCash" type="number" step="1000" min="0" value="50000" inputmode="decimal"></div>
       </form>
@@ -380,7 +381,8 @@ body{margin:0}[hidden]{display:none!important}img{max-width:100%}
         <p id="rNote" style="font-size:.9rem;color:var(--muted)"></p>
       </div>
     </div>
-    <p style="font-size:.82rem;color:var(--muted)">Example numbers INFY ke 30 Oct close ₹1,185 ke aas-paas hain. Ye sirf hisaab hai, salah nahi.</p>
+    <p style="font-size:.82rem;color:var(--muted)" id="calcFoot"></p>
+    <div class="callout"><b>Kaunsa share lun?</b> Ye page nahi batata, aur koi pakke se bata bhi nahi sakta. Tools ka tareeka ye hai: kal 9:35 ke baad <span class="mono">scan.py orb</span> chalao. Inme se jo share sach mein apni 9:15–9:30 ki range ke upar nikle, sirf wahi entry ke layak signal hai. Phir uska stop aur target <span class="mono">/trader-exit</span> se tay karo, aur shares is calculator se. Pehle paper trading karo.</div>
   </section>
 
   <!-- ===== holidays ===== -->
@@ -674,7 +676,21 @@ function renderIndex() {
 }
 
 renderIndex(); renderFilters(); renderGrid("all"); renderHol(); renderCmds();
-document.getElementById("calcForm").addEventListener("input", calc);
+/* share picker: fills entry with the 30 Oct close, an example stop 1% below and a 2R target */
+const r05 = x => Math.round(x * 20) / 20;
+function pickShare() {
+  const h = DATA.hits.find(x => x.symbol === document.getElementById("cSym").value); if (!h) return;
+  const stop = r05(h.price * 0.99), target = r05(h.price + 2 * (h.price - stop));
+  document.getElementById("cEntry").value = h.price; document.getElementById("cStop").value = stop; document.getElementById("cTarget").value = target;
+  document.getElementById("calcFoot").textContent = (NAMES[h.symbol] || h.symbol) + ": entry 30 Oct ka close " + inr(h.price) +
+    ". Stop 1% neeche aur target uska 2 guna sirf example hai; asli stop /trader-exit se tay karo. Ye hisaab hai, salah nahi.";
+  calc();
+}
+(() => { const s = document.getElementById("cSym");
+  DATA.hits.forEach(h => { const o = document.createElement("option"); o.value = h.symbol; o.textContent = h.symbol.replace(".NS", "") + " · " + (NAMES[h.symbol] || "") + " · " + inr(h.price); s.appendChild(o); });
+  s.addEventListener("change", pickShare); })();
+document.getElementById("calcForm").addEventListener("input", e => { if (e.target.id !== "cSym") calc(); });
+pickShare();
 document.getElementById("calcForm").addEventListener("submit", e => e.preventDefault());
 calc(); tick(); setInterval(tick, 1000);
 </script>
