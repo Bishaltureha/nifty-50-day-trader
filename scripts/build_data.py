@@ -24,6 +24,7 @@ _spec.loader.exec_module(scan)
 INDEX = ("^NSEI", "NIFTY 50")
 KEEP = 90         # daily closes per symbol on the page
 OR_MINUTES = 15   # opening range 9:15-9:30
+EMA_FAST, EMA_SLOW = 8, 34   # the trader's own EMAs
 
 # Strength scores, 0-100, one for each side. Every point is listed on the
 # share's page, so the ranking can be checked by hand. A score measures how
@@ -114,6 +115,9 @@ def item(sym, name, series, now_utc):
     return {
         "sym": sym, "name": name,
         "dates": [d.isoformat() for d, _ in tail], "closes": [r2(c) for _, c in tail],
+        # over the whole history, then cut, so the first values on the page are settled
+        "ema_fast": [r2(v) for v in ema(closes, EMA_FAST)[-len(tail):]],
+        "ema_slow": [r2(v) for v in ema(closes, EMA_SLOW)[-len(tail):]],
         "last": r2(last), "last_date": last_d.isoformat(),
         "change_pct": r2((last / closes[-2] - 1) * 100),
         "change_5d": r2((last / closes[-6] - 1) * 100), "change_20d": r2((last / closes[-21] - 1) * 100),
@@ -225,6 +229,17 @@ def ema(vals, n):
     return out
 
 
+def ema_state(bars):
+    """EMA 8 / 34 on the last complete candle: "up" when close > EMA 8 > EMA 34, "down" when
+    close < EMA 8 < EMA 34, else "mixed"."""
+    c = [b["c"] for b in bars]
+    if len(c) < EMA_SLOW:
+        return None
+    f, s, last = ema(c, EMA_FAST)[-1], ema(c, EMA_SLOW)[-1], c[-1]
+    st = "up" if last > f > s else "down" if last < f < s else "mixed"
+    return {"fast": round(f, 2), "slow": round(s, 2), "st": st}
+
+
 def candle_patterns(bars, daily=False):
     """Patterns on the LAST complete bar. bars oldest first, >= 25. -> [keys]."""
     if len(bars) < 25:
@@ -253,10 +268,10 @@ def candle_patterns(bars, daily=False):
             out.append("morning_star")
         if c[-3] > c[-8] and q["c"] > q["o"] and qb >= 0.5 * qr and pb <= 0.3 * pr and b["c"] < b["o"] and b["c"] < mid:
             out.append("evening_star")
-    e9, e21 = ema(c, 9), ema(c, 21)
-    if e9[-2] <= e21[-2] and e9[-1] > e21[-1]:
+    ef, es = ema(c, EMA_FAST), ema(c, EMA_SLOW)
+    if ef[-2] <= es[-2] and ef[-1] > es[-1]:
         out.append("ema_up")
-    if e9[-2] >= e21[-2] and e9[-1] < e21[-1]:
+    if ef[-2] >= es[-2] and ef[-1] < es[-1]:
         out.append("ema_down")
     if not daily and c[-1] > max(c[-21:-1]):
         out.append("high20")
@@ -384,19 +399,20 @@ def patterns_for(daily_series, m15_series, now_utc):
     d = ohlc_bars(daily_series, lambda t: t.date() in last_daily)
     if d:   # the daily 20-day high / low is already a setup, so candle_patterns leaves it out
         out["1d"] = {"at": d[-1]["t"].strftime("%Y-%m-%d"), "found": candle_patterns(d, daily=True),
-                     "chart": chart_patterns(d)}
+                     "chart": chart_patterns(d), "ema": ema_state(d)}
         out["levels"] = levels(d, d[-1]["c"])
     if m15_series:
         b15 = ohlc_bars(m15_series, lambda t: scan.session(t.date()) and t + datetime.timedelta(minutes=15) <= now)
         b15 = [b for b in b15 if datetime.time(9, 15) <= b["t"].time() < datetime.time(15, 30)]
         if b15:
-            out["15m"] = {"at": b15[-1]["t"].strftime("%Y-%m-%d %H:%M"), "found": candle_patterns(b15)}
+            out["15m"] = {"at": b15[-1]["t"].strftime("%Y-%m-%d %H:%M"), "found": candle_patterns(b15),
+                          "ema": ema_state(b15)}
             # full hours only: drops the hour still running and the 15-minute 15:15-15:30 stub,
             # which would always look like the narrowest candle
             h = [x for x in hourly(b15) if x["n"] == 4]
             if h:
                 out["1h"] = {"at": h[-1]["t"].strftime("%Y-%m-%d %H:%M"), "found": candle_patterns(h),
-                             "chart": chart_patterns(h)}
+                             "chart": chart_patterns(h), "ema": ema_state(h)}
     return out
 
 

@@ -232,8 +232,8 @@ const CANDLES = {
   shooting_star: ["Shooting star", "s", "Chadhai ke baad lambi upar ki poonch: daam upar gaya par tik nahi paaya."],
   morning_star: ["Morning star", "l", "Teen candle: badi lal, phir chhoti, phir hari jo pehli ke beech se upar band hui. Girawat rukne ka ishara."],
   evening_star: ["Evening star", "s", "Teen candle: badi hari, phir chhoti, phir lal jo pehli ke beech se neeche band hui. Chadhai rukne ka ishara."],
-  ema_up: ["EMA 9/21 upar cross", "l", "Chhota average (9 candle) bade average (21 candle) ke upar gaya: haal ki tezi."],
-  ema_down: ["EMA 9/21 neeche cross", "s", "Chhota average (9 candle) bade average (21 candle) ke neeche gaya: haal ki kamzori."],
+  ema_up: ["EMA 8/34 upar cross", "l", "EMA 8 ne isi candle par EMA 34 ko neeche se upar kaata: tezi shuru hone ka ishara."],
+  ema_down: ["EMA 8/34 neeche cross", "s", "EMA 8 ne isi candle par EMA 34 ko upar se neeche kaata: mandi shuru hone ka ishara."],
   high20: ["20-candle high", "l", "Is timeframe par pichhli 20 candles ke sabse unche close se upar band hua."],
   low20: ["20-candle low", "s", "Is timeframe par pichhli 20 candles ke sabse neeche close se neeche band hua."],
   doji: ["Doji", "", "Open aur close lagbhag barabar: kharidaar aur bechne wale barabar, faisla nahi hua."],
@@ -250,6 +250,7 @@ const CHARTS = {
   desc_triangle: ["Descending triangle", "s", l => `Neeche seedha farsh (${fmt(l)}) aur upar har baar neecha high. Farsh todne par mandi ka pattern.`],
   sym_triangle: ["Symmetrical triangle", "", l => `High neeche aa rahe hain aur low upar ja rahe hain: daam sikud raha hai. Jidhar se toote, wahi direction.`],
 };
+const EMA_ST = { up: ["Tezi: daam > EMA 8 > EMA 34", "l"], down: ["Mandi: daam < EMA 8 < EMA 34", "s"], mixed: ["Mixed: EMA 8/34 ek line mein nahi", ""] };
 const ST = { forming: "ban raha hai", confirmed: "toda / confirm", up: "upar toda", down: "neeche toda" };
 const TFS = [["1d", "Daily"], ["1h", "1 ghanta"], ["15m", "15 min"]];
 const PART = {
@@ -409,8 +410,9 @@ function patternsHtml(s) {
     const candles = p.found.map(k => { seen.set("c:" + k, k); const c = CANDLES[k]; return `<span class="tag tf ${c[1]}">${c[0]}</span>`; }).join("") || none;
     const charts = tf === "15m" ? `<span class="muted" style="font-size:.85rem">15 min par chart pattern nahi dekhte (bahut shor)</span>` :
       ((p.chart || []).map(c => { seen.set("g:" + c.k, c); return `<span class="tag ${chartSide(c)}">${CHARTS[c.k][0]} · ${ST[c.st]}</span>`; }).join("") || none);
+    const e = p.ema, emaHtml = e ? `<span class="tag ${EMA_ST[e.st][1]}">${EMA_ST[e.st][0]}</span><span class="muted mono" style="font-size:.78rem">EMA 8 ${fmt(e.fast)} · EMA 34 ${fmt(e.slow)}</span>` : none;
     return `<div class="tfrow"><div class="tfl"><b>${label}</b><span>${stamp(p.at)} wali candle</span></div>
-      <div class="grp"><div><em>Candle pattern</em>${candles}</div><div><em>Chart pattern</em>${charts}</div></div></div>`;
+      <div class="grp"><div><em>EMA 8 / 34</em>${emaHtml}</div><div><em>Candle pattern</em>${candles}</div><div><em>Chart pattern</em>${charts}</div></div></div>`;
   }).join("");
   const ex = [...seen.entries()].map(([id, v]) => id[0] === "c" ? `<li><b>${CANDLES[v][0]}:</b> ${CANDLES[v][2]}</li>` : `<li><b>${CHARTS[v.k][0]}:</b> ${CHARTS[v.k][2](v.lvl)}</li>`).join("");
   return rows + (ex ? `<ul class="explain">${ex}</ul>` : "");
@@ -426,7 +428,7 @@ function bigChart(svg, s, tipEl) {
   const c = s.closes, dates = s.dates.slice(), all = c.slice();
   if (s.live) { all.push(s.live.price); dates.push(s.live.time.slice(0, 10)); }
   const lv = (s.patterns || {}).levels || {};
-  const n = all.length, ma = all.map((_, i) => i >= 19 ? all.slice(i - 19, i + 1).reduce((a, b) => a + b, 0) / 20 : null);
+  const n = all.length;
   const extra = [s.high20, s.low20].concat(lv.res ? [lv.res[0]] : [], lv.sup ? [lv.sup[0]] : []);
   const lo = Math.min(...all.concat(extra)) * 0.995, hi = Math.max(...all.concat(extra)) * 1.005;
   const X = i => L + i / (n - 1) * (W - L - R), Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
@@ -442,7 +444,9 @@ function bigChart(svg, s, tipEl) {
   if (lv.sup) level(lv.sup[0], "var(--up)", "Support");
   const pts = c.map((v, i) => X(i).toFixed(1) + "," + Y(v).toFixed(1)).join(" ");
   el("polygon", { points: `${X(0)},${H - B} ${pts} ${X(c.length - 1)},${H - B}`, fill: "var(--accent-soft)", opacity: .55 }, svg);
-  el("polyline", { points: ma.map((v, i) => v == null ? null : X(i).toFixed(1) + "," + Y(v).toFixed(1)).filter(Boolean).join(" "), fill: "none", stroke: "var(--muted)", "stroke-width": 1.4 }, svg);
+  const line = (vals, col, w) => vals && el("polyline", { points: vals.map((v, i) => X(i).toFixed(1) + "," + Y(v).toFixed(1)).join(" "), fill: "none", stroke: col, "stroke-width": w }, svg);
+  line(s.ema_slow, "var(--muted)", 1.5);
+  line(s.ema_fast, "var(--ink)", 1.2);
   el("line", { x1: X(c.length - 21), x2: X(c.length - 1), y1: Y(s.high20), y2: Y(s.high20), stroke: "var(--up)", "stroke-width": 1.4, "stroke-dasharray": "5 4" }, svg);
   el("line", { x1: X(c.length - 21), x2: X(c.length - 1), y1: Y(s.low20), y2: Y(s.low20), stroke: "var(--down)", "stroke-width": 1.4, "stroke-dasharray": "5 4" }, svg);
   el("polyline", { points: pts, fill: "none", stroke: "var(--accent)", "stroke-width": 2.2, "stroke-linejoin": "round" }, svg);
@@ -496,7 +500,8 @@ function renderDetail(s) {
         <div class="tip" id="tip"></div>
         <div class="key">
           <span><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--accent)" stroke-width="2"/></svg>Roz ka close</span>
-          <span><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--muted)" stroke-width="1.5"/></svg>20-din average</span>
+          <span><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--ink)" stroke-width="1.5"/></svg>EMA 8</span>
+          <span><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--muted)" stroke-width="2"/></svg>EMA 34</span>
           <span><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--up)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>20-din high</span>
           <span><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--down)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>20-din low</span>
           <span>Bindi wali lines: support / resistance</span>
@@ -524,6 +529,7 @@ function renderDetail(s) {
   document.getElementById("back").onclick = () => { location.hash = ""; };
   document.getElementById("swap").onclick = () => setSide(isL() ? "s" : "l");
   const st = [["Resistance (upar)", lv.res ? fmt(lv.res[0]) + ` · ${lv.res[1]} baar` : "–"], ["Support (neeche)", lv.sup ? fmt(lv.sup[0]) + ` · ${lv.sup[1]} baar` : "–"],
+    ["EMA 8 (daily)", fmt(s.ema_fast[s.ema_fast.length - 1])], ["EMA 34 (daily)", fmt(s.ema_slow[s.ema_slow.length - 1])],
     ["20-din high", fmt(s.high20)], ["20-din low", fmt(s.low20)], ["20-din average", fmt(s.ma20)], ["6 mahine high / low", fmt(s.high_6m, 0) + " / " + fmt(s.low_6m, 0)],
     ["5 din mein", pct(s.change_5d)], ["20 din mein", pct(s.change_20d)]];
   document.getElementById("stats").innerHTML = st.map(([k, val]) => `<div><dt>${k}</dt><dd>${val}</dd></div>`).join("");
