@@ -103,6 +103,19 @@ section { display: grid; gap: 20px; min-width: 0 }
 .scan-key svg { vertical-align: middle; margin-right: 6px }
 .callout { border-left: 3px solid var(--accent); padding: 10px 14px; background: var(--card); border-radius: 0 8px 8px 0; font-size: .92rem }
 
+/* ---------- plain summary + glossary */
+.easy { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px }
+.easy-card { background: var(--card); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: 12px; padding: 16px; display: grid; gap: 8px; align-content: start }
+.easy-k { font: 700 .75rem/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent) }
+.easy-v { font-size: 1.15rem; line-height: 1.4 }
+.easy-s { font-size: .92rem; color: var(--muted) }
+.hint { font-size: .9rem; color: var(--muted) }
+.hint a, footer a { color: var(--accent) }
+.gloss { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px }
+.gloss div { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 4px }
+.gloss dt { font: 700 1rem var(--display) }
+.gloss dd { margin: 0; font-size: .9rem; color: var(--muted) }
+
 /* ---------- nifty index */
 .idx { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 18px; align-items: start }
 @media (max-width: 820px) { .idx { grid-template-columns: 1fr } }
@@ -196,11 +209,38 @@ body{margin:0}[hidden]{display:none!important}img{max-width:100%}
     </div>
   </header>
 
+  <!-- ===== plain summary ===== -->
+  <section aria-labelledby="easy-h">
+    <div class="head">
+      <span class="eyebrow">Seedhi baat</span>
+      <h2 id="easy-h">Ye page kya batata hai?</h2>
+    </div>
+    <div class="easy">
+      <div class="easy-card">
+        <span class="easy-k">1 · Nifty ne kya kiya</span>
+        <p class="easy-v"><b>2 Nov ko Nifty 23,440 par band hua</b>, pichhle din se <span style="color:var(--up)">1.68% upar</span>.</p>
+        <p class="easy-s">Ye pichhle 20 din ke sabse unche level (23,146) se bhi upar hai. Aise mein market mein tezi ka mood maana jaata hai, par ye pakka nahi ki aage bhi chadhega.</p>
+      </div>
+      <div class="easy-card">
+        <span class="easy-k">2 · Kal kis level par nazar rakhein</span>
+        <p class="easy-v"><b>23,146</b> ek "line" hai.</p>
+        <p class="easy-s">Nifty iske upar tika rahe to tezi bani hui hai. Wapas iske neeche aa jaaye to aaj ki tezi ka signal kamzor pad gaya. Ye sirf dekhne ka level hai, kharidne-bechne ki salah nahi.</p>
+      </div>
+      <div class="easy-card">
+        <span class="easy-k">3 · Kal ka time-table</span>
+        <p class="easy-v"><b>9:15 khulega, 3:30 band.</b></p>
+        <p class="easy-s">Pehle 15 minute (9:15–9:30) sirf dekho. Naya trade 3:00 ke baad mat lo. Jo trade khula ho, 3:15 tak band kar do.</p>
+      </div>
+    </div>
+    <p class="hint">Neeche ka har hissa inhi teen baaton ko detail mein dikhata hai. Koi shabd samajh na aaye to sabse neeche <a href="#shabd">shabdkosh</a> dekho.</p>
+  </section>
+
   <!-- ===== nifty index ===== -->
   <section aria-labelledby="idx-h">
     <div class="head">
       <span class="eyebrow">Index · ^NSEI</span>
       <h2 id="idx-h">Nifty 50 index</h2>
+      <p class="lede">Nifty = India ki 50 sabse badi companies ka ek saath score. Chart mein narangi line Nifty ka roz ka closing level hai. Dotted line pichhle 20 din ka sabse uncha level hai: narangi line uske upar gayi matlab naya high.</p>
     </div>
     <div class="idx">
       <div class="idx-main">
@@ -214,7 +254,7 @@ body{margin:0}[hidden]{display:none!important}img{max-width:100%}
           <span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" style="stroke:var(--accent)" stroke-width="2"/></svg>Close</span>
           <span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" style="stroke:var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>20-din high</span>
           <span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" style="stroke:var(--up)" stroke-width="1.5"/></svg>20-din average</span>
-          <span><svg width="12" height="12"><circle cx="6" cy="6" r="4" style="fill:var(--paper);stroke:var(--accent)" stroke-width="2"/></svg>2 Nov (Yahoo, abhi daily bar mein nahi)</span>
+          <span><svg width="12" height="12"><circle cx="6" cy="6" r="4" style="fill:var(--paper);stroke:var(--accent)" stroke-width="2"/></svg>2 Nov (sabse naya din)</span>
         </div>
       </div>
       <div class="idx-side">
@@ -222,7 +262,7 @@ body{margin:0}[hidden]{display:none!important}img{max-width:100%}
         <div class="orb">
           <h3>2 Nov: opening range breakout</h3>
           <svg id="orbSvg" viewBox="0 0 300 120" role="img" aria-label="2 Nov ki opening range aur breakout"></svg>
-          <p>9:15–9:30 ki range ke upar pehla 5-min close 9:35 wale bar par aaya. Entry tool ne 9:40 par trigger diya.</p>
+          <p>Narangi dabba = pehle 15 minute mein Nifty kitna upar-neeche gaya. 9:40 par Nifty is dabbe ke upar nikal gaya (hara gola). Isi ko "breakout" kehte hain.</p>
         </div>
       </div>
     </div>
@@ -234,6 +274,7 @@ body{margin:0}[hidden]{display:none!important}img{max-width:100%}
     <div class="head">
       <span class="eyebrow">Daily scan · 30 Oct 2026 close</span>
       <h2 id="scan-h">50 mein se 16 charts mein setup bana</h2>
+      <p class="lede">Computer ne Nifty ki 50 companies ke chart dekhe. In 16 mein koi khaas pattern (setup) dikha. Har card mein us company ka 45 din ka chart, aaj ka daam aur ek RSI meter hai.</p>
     </div>
     <div class="scan-key">
       <span><svg width="22" height="8"><line style="stroke:var(--accent)" x1="0" y1="4" x2="22" y2="4" stroke-width="2"/></svg>Price (45 din)</span>
@@ -359,6 +400,28 @@ body{margin:0}[hidden]{display:none!important}img{max-width:100%}
       <h2 id="cmd-h">Roz ka routine, teen commands</h2>
     </div>
     <div class="cmds" id="cmds"></div>
+  </section>
+
+  <!-- ===== glossary ===== -->
+  <section aria-labelledby="shabd-h" id="shabd">
+    <div class="head">
+      <span class="eyebrow">Shabdkosh</span>
+      <h2 id="shabd-h">Mushkil shabd, aasan matlab</h2>
+    </div>
+    <dl class="gloss">
+      <div><dt>Nifty 50</dt><dd>India ki 50 badi companies ka milaa-jula score. Ye upar gaya matlab zyadatar badi companies ke share upar gaye.</dd></div>
+      <div><dt>Close / band hona</dt><dd>3:30 baje market band hone par jo daam tha. Chart har din ka yahi daam jodta hai.</dd></div>
+      <div><dt>20-din high</dt><dd>Pichhle 20 trading dinon mein sabse uncha closing daam. Isse upar band hona = naya high.</dd></div>
+      <div><dt>20-din average</dt><dd>Pichhle 20 din ke closing daam ka ausat. Daam iske upar = haal mein tezi, neeche = mandi.</dd></div>
+      <div><dt>RSI</dt><dd>0 se 100 ka meter jo batata hai ki share haal mein kitni tezi se chadha ya gira. 70 se upar = bahut chadh chuka, 30 se neeche = bahut gir chuka.</dd></div>
+      <div><dt>Setup</dt><dd>Chart par ek jaana-pehchana pattern. Ye sirf ishara hai, guarantee nahi.</dd></div>
+      <div><dt>Opening range</dt><dd>Market khulne ke pehle 15 minute (9:15–9:30) ka sabse uncha aur sabse neecha daam.</dd></div>
+      <div><dt>Breakout</dt><dd>Jab daam kisi range ya purane high ke upar nikal kar band ho.</dd></div>
+      <div><dt>Stop-loss</dt><dd>Wo daam jahan aap pehle se tay karte ho ki galat nikle to bech denge, taaki nuksaan chhota rahe.</dd></div>
+      <div><dt>Target</dt><dd>Wo daam jahan aap munafa le kar nikal jaoge.</dd></div>
+      <div><dt>Day trade</dt><dd>Usi din khareedna aur usi din bechna. Raat bhar position nahi rakhte.</dd></div>
+      <div><dt>Paper trading</dt><dd>Nakli paise se practice. Asli paisa lagane se pehle zaroor karo.</dd></div>
+    </dl>
   </section>
 
   <footer>
