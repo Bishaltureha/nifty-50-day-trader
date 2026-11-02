@@ -2,7 +2,7 @@
 
 **Website:** https://bishaltureha.github.io/nifty-50-day-trader/
 
-- Nifty 50 ke saare 50 shares ki list, har share ke saath uska setup (20-din high, bull flag, average ke upar, oversold)
+- Nifty 50 ke saare 50 shares, **Long aur Short** dono: daily setups, aaj ka ORB, candle patterns (Daily, 1 ghanta, 15 min) aur chart patterns (double top/bottom, head & shoulders, triangles), support/resistance
 - Kisi share par click karo: chart, setup kyun bana, ahem levels, RSI aur position-size calculator
 - Sabse upar Nifty 50 index
 - [Guide aur shabdkosh](https://bishaltureha.github.io/nifty-50-day-trader/guide.html)

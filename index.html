@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Nifty 50 scanner: har share ka setup, chart aur levels, roz apne aap update.">
+<meta name="description" content="Nifty 50 scanner: long aur short setups, candle aur chart patterns (Daily, 1 ghanta, 15 min), har 15 minute apne aap update.">
 <title>Nifty 50 Scanner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600;700&display=swap">
 <style>
-/* Layout: a scanner terminal. Index strip on top, one dense list of 50 rows; a row opens a detail sheet. */
+/* Layout: a scanner terminal. Long/short switch, index strip, one dense list; a row opens a detail sheet. */
 :root {
   --paper: #F4F6F9; --card: #FFFFFF; --ink: #15213A; --muted: #5A6479; --line: #DCE1E9;
   --accent: #D9730D; --accent-soft: #FBEBD9; --up: #12804F; --up-soft: #DDF2E7;
@@ -32,26 +32,34 @@ button { font: inherit; color: inherit }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
 .wrap { max-width: 1080px; margin: 0 auto; padding-block: 18px 48px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-  display: grid; gap: 18px }
-.wrap > *, main > div > *, .controls > *, .idx > *, .item > * { min-width: 0 }
+  display: grid; gap: 16px }
+.wrap > *, main > div > *, .controls > *, .idx > *, .item > *, .grid2 > * { min-width: 0 }
 h1, h2 { font-family: var(--display); margin: 0; line-height: 1.1; text-wrap: balance }
 h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 800; letter-spacing: -.01em }
 h2 { font-size: clamp(1.3rem, 3vw, 1.7rem); font-weight: 800 }
+h3 { margin: 0; font: 700 1rem var(--display) }
 p { margin: 0 }
-.mono, .num { font-family: var(--mono); font-variant-numeric: tabular-nums }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums }
 .muted { color: var(--muted) }
 .up { color: var(--up) } .down { color: var(--down) }
+.note { font-size: .82rem; color: var(--muted) }
 
 /* top bar */
 .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px }
-.brand { display: grid; gap: 2px }
-.brand small { color: var(--muted); font-size: .82rem }
+.brand { display: grid; gap: 2px } .brand small { color: var(--muted); font-size: .82rem }
 .status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: .85rem }
 .pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 999px; font: 700 .76rem/1 var(--mono); letter-spacing: .04em }
 .pill i { width: 8px; height: 8px; border-radius: 50%; background: currentColor }
-.pill.open { background: var(--up-soft); color: var(--up) }
-.pill.closed { background: var(--down-soft); color: var(--down) }
+.pill.open { background: var(--up-soft); color: var(--up) } .pill.closed { background: var(--down-soft); color: var(--down) }
 .guide { font-weight: 700; text-decoration: none; border: 1px solid var(--line); background: var(--card); padding: 6px 12px; border-radius: 8px; color: var(--ink) }
+
+/* long / short switch */
+.side { display: grid; grid-template-columns: 1fr 1fr; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 4px; gap: 4px }
+.side button { border: 0; border-radius: 9px; padding: 10px; background: none; cursor: pointer; display: grid; gap: 1px; text-align: center }
+.side b { font: 800 1rem var(--display) } .side span { font-size: .78rem; color: var(--muted) }
+.side button[aria-pressed="true"].l { background: var(--up-soft); color: var(--up) }
+.side button[aria-pressed="true"].s { background: var(--down-soft); color: var(--down) }
+.side button[aria-pressed="true"] span { color: inherit }
 
 /* index strip */
 .idx { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center;
@@ -61,45 +69,40 @@ p { margin: 0 }
 .idx .label { font: 700 .72rem/1 var(--mono); letter-spacing: .1em; color: var(--accent) }
 .idx .val { font: 700 1.35rem var(--mono) }
 .idx svg { width: 100%; height: 44px; display: block }
-@media (max-width: 560px) { .idx { grid-template-columns: 1fr auto } .idx svg { grid-column: 1 / -1; grid-row: 2 } }
+@media (max-width: 560px) { .idx { grid-template-columns: 1fr auto } .idx svg { grid-column: 1 / -1; grid-row: 2 } .idx .tags { grid-column: 1 / -1 } }
 
 /* controls */
 .controls { display: grid; gap: 10px }
-.summary { display: flex; flex-wrap: wrap; gap: 8px }
+.chips { display: flex; flex-wrap: wrap; gap: 8px }
 .chip { font: 700 .8rem/1 var(--body); padding: 8px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); cursor: pointer; display: inline-flex; gap: 6px; align-items: center }
 .chip b { font-family: var(--mono) }
 .chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink) }
 .row2 { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
 .search { flex: 1 1 200px; min-width: 0; font: 600 .95rem var(--body); padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink) }
 select.sort { font: 600 .85rem var(--body); padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink) }
-.asof { font-size: .8rem; color: var(--muted) }
 
 /* list */
 .list { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden }
-.lhead, .item { display: grid; grid-template-columns: minmax(0, 1.5fr) 92px 110px minmax(0, .9fr) minmax(0, 1.8fr) 18px; gap: 12px; align-items: center; padding: 10px 14px }
+.lhead, .item { display: grid; grid-template-columns: minmax(0, 1.3fr) 84px 100px minmax(0, .9fr) minmax(0, 2.2fr) 14px; gap: 12px; align-items: center; padding: 10px 14px }
 .lhead { font: 700 .7rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); background: var(--band) }
 .item { width: 100%; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; cursor: pointer }
 .item:last-child { border-bottom: 0 }
 .item:hover { background: var(--hover) }
-.item.has { box-shadow: inset 3px 0 0 var(--accent) }
+.item.has.l { box-shadow: inset 3px 0 0 var(--up) } .item.has.s { box-shadow: inset 3px 0 0 var(--down) }
 .sym { font: 700 .95rem var(--mono) }
 .nm { font-size: .78rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-.item svg { width: 110px; height: 30px; display: block }
+.item svg { width: 100px; height: 30px; display: block }
 .px { font: 600 .92rem var(--mono); text-align: right } .px small { display: block; font-size: .76rem; font-weight: 600 }
 .str { display: grid; gap: 4px } .str b { font: 800 1rem/1 var(--mono) }
 .str i { display: block; height: 5px; border-radius: 3px; background: var(--band); overflow: hidden }
-.str i span { display: block; height: 100%; background: var(--up) }
-.str.mid i span { background: var(--accent) } .str.low i span { background: var(--muted) }
-.tag.orb { background: var(--ink); color: var(--paper) }
-.parts { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none }
-.parts li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: .9rem }
-.parts li b { font: 700 .9rem var(--mono); text-align: right } .parts li.neg b { color: var(--down) }
-.parts .total { border-top: 1px solid var(--line); padding-top: 6px; font-weight: 700 }
-.orbbox { display: grid; gap: 4px; padding: 12px; border-radius: 10px; background: var(--band) }
-.live { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--muted) }
+.str i span { display: block; height: 100% }
 .tags { display: flex; flex-wrap: wrap; gap: 5px }
-.tag { font: 700 .72rem/1 var(--body); padding: 5px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); white-space: nowrap }
-.tag.g { background: var(--up-soft); color: var(--up) } .tag.r { background: var(--down-soft); color: var(--down) }
+.tag { font: 700 .72rem/1 var(--body); padding: 5px 7px; border-radius: 6px; white-space: nowrap; background: var(--band); color: var(--ink) }
+.tag.l { background: var(--up-soft); color: var(--up) } .tag.s { background: var(--down-soft); color: var(--down) }
+.tag.orb { background: var(--ink); color: var(--paper) }
+.tag.warn { background: var(--accent-soft); color: var(--accent) }
+.tag.tf { background: transparent; border: 1px solid var(--line); color: var(--muted); font-weight: 600 }
+.tag.tf.l { border-color: var(--up); color: var(--up) } .tag.tf.s { border-color: var(--down); color: var(--down) }
 .tag.none { background: transparent; color: var(--muted); font-weight: 400; padding-left: 0 }
 .chev { color: var(--muted); font: 700 1rem var(--mono) }
 @media (max-width: 720px) {
@@ -109,19 +112,24 @@ select.sort { font: 600 .85rem var(--body); padding: 9px 10px; border-radius: 8p
   .item > :nth-child(4) { grid-area: c } .item > :nth-child(5) { grid-area: e }
 }
 .empty { padding: 24px; text-align: center; color: var(--muted) }
-.note { font-size: .82rem; color: var(--muted) }
 
 /* detail */
 .back { justify-self: start; border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 7px 12px; cursor: pointer; font-weight: 700 }
 .dhead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 10px 20px }
 .dprice { text-align: right } .dprice .big { font: 800 clamp(1.8rem, 5vw, 2.4rem)/1 var(--mono) }
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 12px; min-width: 0 }
-.panel h3 { margin: 0; font: 700 1rem var(--display) }
 .why { display: grid; gap: 10px }
-.why div { display: grid; gap: 4px; padding: 12px; border-radius: 10px; background: var(--accent-soft) }
-.why div.g { background: var(--up-soft) } .why div.r { background: var(--down-soft) }
+.why div { display: grid; gap: 4px; padding: 12px; border-radius: 10px; background: var(--band) }
+.why div.l { background: var(--up-soft) } .why div.s { background: var(--down-soft) } .why div.warn { background: var(--accent-soft) }
 .why b { font-family: var(--display) } .why span { font-size: .9rem }
-.why div.plain { background: var(--band) }
+.tfs { display: grid; gap: 10px }
+.tfrow { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 12px; padding: 10px 12px; border-radius: 10px; background: var(--band); align-items: start }
+.tfrow .tfl { display: grid; gap: 1px } .tfrow .tfl b { font: 700 .95rem var(--mono) } .tfrow .tfl span { font-size: .72rem; color: var(--muted) }
+.tfrow .grp { display: grid; gap: 6px }
+.tfrow .grp div { display: flex; flex-wrap: wrap; gap: 5px; align-items: center }
+.tfrow .grp em { font-style: normal; font-size: .72rem; color: var(--muted); width: 100% }
+.explain { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none }
+.explain li { font-size: .88rem } .explain b { font-family: var(--display) }
 .chart { width: 100%; height: auto; display: block; touch-action: pan-y }
 .key { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .8rem; color: var(--muted) }
 .key svg { vertical-align: middle; margin-right: 5px }
@@ -134,12 +142,17 @@ select.sort { font: 600 .85rem var(--body); padding: 9px 10px; border-radius: 8p
 .meter { position: relative; height: 10px; border-radius: 5px; background: linear-gradient(90deg, var(--down-soft) 0 30%, var(--band) 30% 70%, var(--accent-soft) 70%) }
 .meter i { position: absolute; top: -4px; width: 4px; height: 18px; border-radius: 2px; background: var(--ink); transform: translateX(-50%) }
 .meterlab { display: flex; justify-content: space-between; font: .7rem var(--mono); color: var(--muted) }
+.parts { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none }
+.parts li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: .9rem }
+.parts li b { font: 700 .9rem var(--mono); text-align: right } .parts li.neg b { color: var(--down) }
+.parts .total { border-top: 1px solid var(--line); padding-top: 6px; font-weight: 700 }
 .calc { display: grid; gap: 10px }
 .calc .f { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
 .calc label { display: grid; gap: 3px; font-size: .78rem; color: var(--muted) }
 .calc input { font: 600 .95rem var(--mono); padding: 8px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); width: 100% }
 .calc .out { font-size: .9rem } .calc .out b { font-family: var(--mono) }
 .calc .shares { font: 800 2rem/1 var(--display) }
+.swap { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 6px 10px; cursor: pointer; font-weight: 700; font-size: .85rem }
 footer { font-size: .8rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 4px }
 </style>
 </head>
@@ -154,36 +167,39 @@ footer { font-size: .8rem; color: var(--muted); border-top: 1px solid var(--line
     </div>
   </header>
 
+  <div class="side" role="group" aria-label="Long ya short">
+    <button type="button" class="l" id="sideL" aria-pressed="true"><b>▲ Long</b><span>Tezi: kharid kar upar bechna</span></button>
+    <button type="button" class="s" id="sideS" aria-pressed="false"><b>▼ Short</b><span>Mandi: bech kar neeche kharidna</span></button>
+  </div>
+
   <main id="listView">
     <div style="display:grid;gap:14px">
       <button class="idx" id="idxStrip" type="button" aria-label="Nifty 50 index ki detail kholo"></button>
       <div class="controls">
-        <div class="summary" id="chips" role="group" aria-label="Setup se chhaanto"></div>
+        <div class="chips" id="chips" role="group" aria-label="Chhaanto"></div>
         <div class="row2">
           <input class="search" id="q" type="search" placeholder="Share dhoondho: INFY, Reliance…" aria-label="Share dhoondho">
           <select class="sort" id="sort" aria-label="Kram">
             <option value="strength">Sabse strong pehle</option>
-            <option value="setup">Setup wale pehle</option>
             <option value="chg">Aaj sabse zyada upar</option>
             <option value="chgd">Aaj sabse zyada neeche</option>
-            <option value="rsi">RSI zyada se kam</option>
             <option value="name">A se Z</option>
           </select>
         </div>
       </div>
       <div class="list" role="list">
-        <div class="lhead" aria-hidden="true"><span>Share</span><span>Strength</span><span>45 din</span><span style="text-align:right">Daam</span><span>Setup</span><span></span></div>
+        <div class="lhead" aria-hidden="true"><span>Share</span><span>Strength</span><span>45 din</span><span style="text-align:right">Daam</span><span>Setup aur pattern</span><span></span></div>
         <div id="rows"></div>
       </div>
-      <p class="note">Kisi bhi share par click karo, uski poori detail khulegi. <b>Strength</b> 0 se 100 ka score hai: setups, trend, RSI aur aaj ka move jod kar. Kaale <span class="tag orb">ORB</span> tag ka matlab: aaj 9:15–9:30 ki range ke upar 5-min close aaya. Score aur setup pattern hain, kharidne ki salah nahi.</p>
+      <p class="note" id="listNote"></p>
     </div>
   </main>
 
   <main id="detailView" hidden></main>
 
   <footer>
-    <p><b>Financial advice nahi hai.</b> Day trading aur options mein zyadatar log paisa gawaate hain. Pehle paper trading karo.</p>
-    <p>Data: Yahoo Finance (free, delayed). Har din market band hone ke baad aur subah khulne se pehle apne aap update hota hai. Setups us din ke close par hain jo poora ho chuka hai.</p>
+    <p><b>Financial advice nahi hai.</b> Day trading, short selling aur options mein zyadatar log paisa gawaate hain. Pehle paper trading karo.</p>
+    <p>Data: Yahoo Finance (free, delayed). Market ke time har 15 minute mein apne aap scan hota hai. Daily setups aakhri poore din ke close par hain; 1 ghanta aur 15 min ke pattern aakhri poori candle par.</p>
   </footer>
 </div>
 
@@ -191,19 +207,63 @@ footer { font-size: .8rem; color: var(--muted); border-top: 1px solid var(--line
 const OPEN = 9 * 60 + 15, CLOSE = 15 * 60 + 30;
 const HOLIDAYS = ["2026-01-15","2026-01-26","2026-03-03","2026-03-26","2026-03-31","2026-04-03","2026-04-14","2026-05-01",
   "2026-05-28","2026-06-26","2026-09-14","2026-10-02","2026-10-20","2026-11-10","2026-11-24","2026-12-25"];
-const SETUP = {
-  breakout_20d: { t: "20-din high toda", c: "" },
-  bull_flag: { t: "Bull flag", c: "" },
-  reclaim_ma20: { t: "Average ke upar", c: "g" },
-  oversold: { t: "Oversold", c: "r" },
-  oversold_bounce: { t: "Oversold bounce", c: "g" },
+
+/* daily setups: [label, side ("l", "s" or "warn"), plain explanation (s = share)] */
+const SETUPS = {
+  breakout_20d: ["20-din high toda", "l", s => `${dmon(s.last_date)} ko close ${fmt(s.last)}, jo pichhle 20 din ke sabse unche close ${fmt(s.high20)} se upar hai. Naya high bana.`],
+  bull_flag: ["Bull flag", "l", s => `Pehle tez chadhai (10 din mein ${s.run_pct.toFixed(1)}%), phir pichhle 5 din daam sirf ${s.range5_pct.toFixed(1)}% ke daayre mein ruka. Jhande jaisa pattern.`],
+  reclaim_ma20: ["Average ke upar wapas", "l", s => `Pichhle din daam 20-din average ke neeche tha; ${dmon(s.last_date)} ko ${fmt(s.last)} par average ${fmt(s.ma20)} ke upar band hua.`],
+  oversold_bounce: ["Oversold bounce", "l", s => `Pichhle din RSI ${s.rsi_prev.toFixed(1)} (30 se neeche) tha, aur aaj close upar hua.`],
+  oversold: ["Oversold", "warn", s => `RSI ${s.rsi.toFixed(1)}, 30 se neeche. Share bahut gir chuka hai: uchhal bhi sakta hai, aur bhi gir sakta hai.`],
+  breakdown_20d: ["20-din low toda", "s", s => `${dmon(s.last_date)} ko close ${fmt(s.last)}, jo pichhle 20 din ke sabse neeche close ${fmt(s.low20)} se bhi neeche hai. Naya low bana.`],
+  bear_flag: ["Bear flag", "s", s => `Pehle tez girawat (10 din mein ${s.run_pct.toFixed(1)}%), phir pichhle 5 din daam sirf ${s.range5_pct.toFixed(1)}% ke daayre mein ruka. Ulta jhanda.`],
+  lose_ma20: ["Average ke neeche gira", "s", s => `Pichhle din daam 20-din average ke upar tha; ${dmon(s.last_date)} ko ${fmt(s.last)} par average ${fmt(s.ma20)} ke neeche band hua.`],
+  overbought_drop: ["Overbought se gira", "s", s => `Pichhle din RSI ${s.rsi_prev.toFixed(1)} (70 se upar) tha, aur aaj close neeche hua.`],
+  overbought: ["Overbought", "warn", s => `RSI ${s.rsi.toFixed(1)}, 70 se upar. Share bahut chadh chuka hai: aur chadh bhi sakta hai, palat bhi sakta hai.`],
 };
+const LONG_SETUPS = ["breakout_20d", "bull_flag", "reclaim_ma20", "oversold_bounce", "oversold"];
+const SHORT_SETUPS = ["breakdown_20d", "bear_flag", "lose_ma20", "overbought_drop", "overbought"];
+
+/* candle patterns: [label, side, explanation] */
+const CANDLES = {
+  bull_engulf: ["Bullish engulfing", "l", "Girawat ke baad hari candle ne pichhli lal candle ko poora dhak liya: kharidaar wapas aaye."],
+  bear_engulf: ["Bearish engulfing", "s", "Chadhai ke baad lal candle ne pichhli hari candle ko poora dhak liya: bechne wale haavi hue."],
+  hammer: ["Hammer", "l", "Girawat ke baad lambi neeche ki poonch: daam neeche gaya par kharidaar ne wapas upar kheecha."],
+  shooting_star: ["Shooting star", "s", "Chadhai ke baad lambi upar ki poonch: daam upar gaya par tik nahi paaya."],
+  morning_star: ["Morning star", "l", "Teen candle: badi lal, phir chhoti, phir hari jo pehli ke beech se upar band hui. Girawat rukne ka ishara."],
+  evening_star: ["Evening star", "s", "Teen candle: badi hari, phir chhoti, phir lal jo pehli ke beech se neeche band hui. Chadhai rukne ka ishara."],
+  ema_up: ["EMA 9/21 upar cross", "l", "Chhota average (9 candle) bade average (21 candle) ke upar gaya: haal ki tezi."],
+  ema_down: ["EMA 9/21 neeche cross", "s", "Chhota average (9 candle) bade average (21 candle) ke neeche gaya: haal ki kamzori."],
+  high20: ["20-candle high", "l", "Is timeframe par pichhli 20 candles ke sabse unche close se upar band hua."],
+  low20: ["20-candle low", "s", "Is timeframe par pichhli 20 candles ke sabse neeche close se neeche band hua."],
+  doji: ["Doji", "", "Open aur close lagbhag barabar: kharidaar aur bechne wale barabar, faisla nahi hua."],
+  inside_bar: ["Inside bar", "", "Candle pichhli candle ke andar hi rahi: daam ruka hua hai, aage kisi bhi taraf nikal sakta hai."],
+  nr7: ["NR7", "", "Pichhle 7 dinon mein sabse chhoti range: daam shaant hai, aksar iske baad bada move aata hai."],
+};
+/* chart patterns: [label, side, explanation (l = confirming level)] */
+const CHARTS = {
+  double_bottom: ["Double bottom (W)", "l", l => `Daam do baar lagbhag ek hi level par gira aur dono baar wapas utha. Neckline ${fmt(l)} ke upar band hone par pattern pura maana jaata hai.`],
+  double_top: ["Double top (M)", "s", l => `Daam do baar lagbhag ek hi level par ruka aur dono baar wapas gira. Neckline ${fmt(l)} ke neeche band hone par pattern pura maana jaata hai.`],
+  inv_head_shoulders: ["Inverse head & shoulders", "l", l => `Teen low: beech wala sabse gehra, dono taraf barabar. Neckline ${fmt(l)} ke upar todne par tezi ka pattern.`],
+  head_shoulders: ["Head & shoulders", "s", l => `Teen high: beech wala sabse uncha, dono taraf barabar. Neckline ${fmt(l)} ke neeche todne par mandi ka pattern.`],
+  asc_triangle: ["Ascending triangle", "l", l => `Upar seedhi chhat (${fmt(l)}) aur neeche har baar uncha low. Chhat todne par tezi ka pattern.`],
+  desc_triangle: ["Descending triangle", "s", l => `Neeche seedha farsh (${fmt(l)}) aur upar har baar neecha high. Farsh todne par mandi ka pattern.`],
+  sym_triangle: ["Symmetrical triangle", "", l => `High neeche aa rahe hain aur low upar ja rahe hain: daam sikud raha hai. Jidhar se toote, wahi direction.`],
+};
+const ST = { forming: "ban raha hai", confirmed: "toda / confirm", up: "upar toda", down: "neeche toda" };
+const TFS = [["1d", "Daily"], ["1h", "1 ghanta"], ["15m", "15 min"]];
 const PART = {
-  orb: "Aaj opening range ke upar nikla (ORB)", breakout_20d: "Setup: 20-din high toda", bull_flag: "Setup: bull flag",
-  reclaim_ma20: "Setup: average ke upar wapas", oversold_bounce: "Setup: oversold bounce",
-  above_ma20: "Daam 20-din average ke upar", change_20d: "20 din ka badlav (zyada se zyada ±10)",
+  orb: "Aaj opening range ke upar nikla (ORB)", orb_down: "Aaj opening range ke neeche toota (ORB)",
+  breakout_20d: "Setup: 20-din high toda", bull_flag: "Setup: bull flag", reclaim_ma20: "Setup: average ke upar wapas", oversold_bounce: "Setup: oversold bounce",
+  breakdown_20d: "Setup: 20-din low toda", bear_flag: "Setup: bear flag", lose_ma20: "Setup: average ke neeche gira", overbought_drop: "Setup: overbought se gira",
+  above_ma20: "Daam 20-din average ke upar", below_ma20: "Daam 20-din average ke neeche",
+  change_20d: "20 din ka badlav (zyada se zyada ±10)", fall_20d: "20 din ki girawat (zyada se zyada ±10)",
   rsi_healthy: "RSI 50–70: achhi tezi, zyada garam nahi", rsi_neutral: "RSI 40–50", rsi_hot: "RSI 70 se upar: bahut garam, isliye kam point",
-  today_up: "Aaj ka badhaav (Yahoo ka latest daam)" };
+  rsi_weak: "RSI 30–50: kamzori, par zyada gira nahi", rsi_neutral_s: "RSI 50–60", rsi_cold: "RSI 30 se neeche: bahut gir chuka, isliye kam point",
+  today_up: "Aaj ka badhaav (Yahoo ka latest daam)", today_down: "Aaj ki girawat (Yahoo ka latest daam)",
+  tf_1d: "Daily candle pattern", tf_1h: "1 ghante ka candle pattern", tf_15m: "15 min ka candle pattern",
+  chart_1d: "Daily chart pattern", chart_1h: "1 ghante ka chart pattern" };
+
 const NS = "http://www.w3.org/2000/svg", STYLED = new Set(["fill", "stroke", "font-family"]);
 const el = (tag, attrs = {}, parent) => {
   const e = document.createElementNS(NS, tag);
@@ -215,8 +275,29 @@ const inr = (v, d = 2) => "₹" + fmt(v, d);
 const pct = v => v == null ? "–" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
 const short = s => s.replace(".NS", "").replace("^NSEI", "NIFTY");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-const dmon = d => new Date(d + "T00:00:00Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
-let DATA = null, FILTER = "all";
+const dmon = d => new Date(d.slice(0, 10) + "T00:00:00Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
+const stamp = at => at.length > 10 ? dmon(at) + " " + at.slice(11) : dmon(at);
+let DATA = null, FILTER = "all", SIDE = "l";
+try { if (localStorage.getItem("side") === "s") SIDE = "s"; } catch (e) {}
+
+/* ---------- side helpers */
+const isL = () => SIDE === "l";
+const score = s => isL() ? s.strength : s.short_strength;
+const parts = s => isL() ? s.strength_parts : s.short_parts;
+const setupsOf = s => isL() ? s.setups : s.short_setups;
+const orbOf = s => isL() ? s.orb : s.orb_short;
+const chartSide = c => c.k === "sym_triangle" ? (c.st === "up" ? "l" : c.st === "down" ? "s" : "") : CHARTS[c.k][1];
+const tfPatterns = (s, side) => {       // [{tf, kind, k, st}] pointing `side`
+  const out = [];
+  for (const [tf] of TFS) {
+    const p = (s.patterns || {})[tf]; if (!p) continue;
+    p.found.forEach(k => { if (CANDLES[k] && CANDLES[k][1] === side) out.push({ tf, kind: "c", k }); });
+    (p.chart || []).forEach(c => { if (chartSide(c) === side) out.push({ tf, kind: "g", k: c.k, st: c.st }); });
+  }
+  return out;
+};
+const hasSignal = s => setupsOf(s).some(k => SETUPS[k][1] === SIDE) || !!orbOf(s) || tfPatterns(s, SIDE).length > 0;
+const TFSHORT = { "1d": "1D", "1h": "1H", "15m": "15m" };
 
 /* ---------- clock */
 function tick() {
@@ -233,29 +314,48 @@ function spark(svg, closes, w, h) {
   const lo = Math.min(...closes), hi = Math.max(...closes), n = closes.length;
   svg.setAttribute("viewBox", `0 0 ${w} ${h}`); svg.setAttribute("preserveAspectRatio", "none");
   const pts = closes.map((v, i) => (i / (n - 1) * w).toFixed(1) + "," + (h - 2 - (v - lo) / (hi - lo || 1) * (h - 4)).toFixed(1)).join(" ");
-  const up = closes[n - 1] >= closes[0];
-  el("polyline", { points: pts, fill: "none", stroke: up ? "var(--up)" : "var(--down)", "stroke-width": 1.6, "vector-effect": "non-scaling-stroke", "stroke-linejoin": "round" }, svg);
+  el("polyline", { points: pts, fill: "none", stroke: closes[n - 1] >= closes[0] ? "var(--up)" : "var(--down)", "stroke-width": 1.6, "vector-effect": "non-scaling-stroke", "stroke-linejoin": "round" }, svg);
 }
-const tagsHtml = s => {
-  const t = (s.orb ? `<span class="tag orb" title="Aaj ${s.orb.at} par range ke upar">ORB ${s.orb.at.replace(" AM", "").replace(" PM", "")}</span>` : "") +
-    s.setups.map(k => `<span class="tag ${SETUP[k] ? SETUP[k].c : ""}">${SETUP[k] ? SETUP[k].t : k}</span>`).join("");
-  return t || `<span class="tag none">Koi setup nahi</span>`;
-};
-const strHtml = s => `<div class="str ${s.strength >= 60 ? "" : s.strength >= 35 ? "mid" : "low"}" title="Strength ${s.strength}/100"><b>${s.strength}</b><i><span style="width:${s.strength}%"></span></i></div>`;
+function tagsHtml(s, max = 6) {
+  const t = [];
+  const o = orbOf(s);
+  if (o) t.push(`<span class="tag orb" title="Aaj ${o.at}">ORB ${isL() ? "▲" : "▼"} ${o.at.replace(/ [AP]M/, "")}</span>`);
+  setupsOf(s).forEach(k => t.push(`<span class="tag ${SETUPS[k][1]}">${SETUPS[k][0]}</span>`));
+  tfPatterns(s, SIDE).forEach(p => {
+    const name = p.kind === "c" ? CANDLES[p.k][0] : CHARTS[p.k][0] + (p.st === "forming" ? " (ban raha)" : "");
+    t.push(`<span class="tag tf ${SIDE}">${TFSHORT[p.tf]} · ${name}</span>`);
+  });
+  if (!t.length) return `<span class="tag none">Is side ka koi signal nahi</span>`;
+  return t.slice(0, max).join("") + (t.length > max ? `<span class="tag none">+${t.length - max}</span>` : "");
+}
+const strHtml = s => { const v = score(s); return `<div class="str" title="Strength ${v}/100"><b>${v}</b><i><span style="width:${v}%;background:${v >= 60 ? (isL() ? "var(--up)" : "var(--down)") : v >= 35 ? "var(--accent)" : "var(--muted)"}"></span></i></div>`; };
 
 /* ---------- list view */
+function renderSide() {
+  document.getElementById("sideL").setAttribute("aria-pressed", isL());
+  document.getElementById("sideS").setAttribute("aria-pressed", !isL());
+  document.getElementById("listNote").innerHTML = isL()
+    ? `<b>Long</b> list: jo shares upar ki taraf strong hain. <b>Strength</b> 0–100 ka score hai: setups, trend, RSI, aaj ka move aur patterns jod kar. Kisi share par click karo, poori detail khulegi. Ye pattern hain, kharidne ki salah nahi.`
+    : `<b>Short</b> list: jo shares neeche ki taraf kamzor hain. Cash market mein short sirf intraday hota hai (usi din wapas kharidna padta hai); F&amp;O mein futures short ya put. Short mein nuksaan ki koi upper limit nahi hoti, isliye stop-loss zaroori hai. Ye pattern hain, salah nahi.`;
+}
 function renderIndexStrip() {
   const i = DATA.index, b = document.getElementById("idxStrip");
   const shown = i.live ? i.live.price : i.last, ch = i.live ? i.live.change_pct : i.change_pct;
-  b.innerHTML = `<div><div class="label">NIFTY 50 INDEX</div><div class="val">${fmt(shown)}</div><div class="${ch >= 0 ? "up" : "down"} mono" style="font-size:.85rem;font-weight:700">${pct(ch)} ${i.live ? "· " + dmon(i.live.time.slice(0, 10)) : ""}</div></div>
-    <svg aria-hidden="true"></svg><div class="tags" style="justify-content:flex-end">${tagsHtml(i)}<span class="chev">›</span></div>`;
+  b.innerHTML = `<div><div class="label">NIFTY 50 INDEX</div><div class="val">${fmt(shown)}</div><div class="${ch >= 0 ? "up" : "down"} mono" style="font-size:.85rem;font-weight:700">${pct(ch)} · ${i.live ? dmon(i.live.time) : dmon(i.last_date)}</div></div>
+    <svg aria-hidden="true"></svg><div style="display:flex;gap:10px;align-items:center;justify-content:flex-end">${strHtml(i)}<div class="tags">${tagsHtml(i, 3)}</div><span class="chev">›</span></div>`;
   spark(b.querySelector("svg"), i.closes.slice(-60).concat(i.live ? [i.live.price] : []), 300, 44);
   b.onclick = () => { location.hash = "NIFTY"; };
 }
 function renderChips() {
-  const c = { all: DATA.stocks.length, any: 0, orb: 0 };
-  DATA.stocks.forEach(s => { if (s.setups.length || s.orb) c.any++; if (s.orb) c.orb++; s.setups.forEach(k => c[k] = (c[k] || 0) + 1); });
-  const opts = [["all", "Sab"], ["any", "Setup wale"]].concat(c.orb ? [["orb", "Aaj ORB"]] : []).concat(Object.keys(SETUP).filter(k => c[k]).map(k => [k, SETUP[k].t]));
+  const st = DATA.stocks, c = { all: st.length, any: 0, orb: 0, pat: 0 };
+  const keys = isL() ? LONG_SETUPS : SHORT_SETUPS;
+  st.forEach(s => {
+    if (hasSignal(s)) c.any++; if (orbOf(s)) c.orb++; if (tfPatterns(s, SIDE).length) c.pat++;
+    setupsOf(s).forEach(k => c[k] = (c[k] || 0) + 1);
+  });
+  const opts = [["all", "Sab"], ["any", "Signal wale"]].concat(c.orb ? [["orb", "Aaj ORB"]] : [], c.pat ? [["pat", "Candle / chart pattern"]] : [])
+    .concat(keys.filter(k => c[k]).map(k => [k, SETUPS[k][0]]));
+  if (!opts.some(o => o[0] === FILTER)) FILTER = "all";
   const box = document.getElementById("chips"); box.textContent = "";
   opts.forEach(([k, t]) => {
     const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.setAttribute("aria-pressed", k === FILTER);
@@ -266,26 +366,23 @@ function renderChips() {
 }
 function renderRows() {
   const q = document.getElementById("q").value.trim().toLowerCase(), sort = document.getElementById("sort").value;
-  let list = DATA.stocks.filter(s => FILTER === "all" || (FILTER === "any" ? s.setups.length || s.orb : FILTER === "orb" ? s.orb : s.setups.includes(FILTER)))
+  let list = DATA.stocks.filter(s => FILTER === "all" || (FILTER === "any" ? hasSignal(s) : FILTER === "orb" ? orbOf(s) :
+    FILTER === "pat" ? tfPatterns(s, SIDE).length : setupsOf(s).includes(FILTER)))
     .filter(s => !q || s.sym.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
-  const by = {
-    strength: (a, b) => b.strength - a.strength || b.change_pct - a.change_pct,
-    setup: (a, b) => (b.setups.length + !!b.orb) - (a.setups.length + !!a.orb) || b.strength - a.strength,
-    chg: (a, b) => b.change_pct - a.change_pct, chgd: (a, b) => a.change_pct - b.change_pct,
-    rsi: (a, b) => (b.rsi || 0) - (a.rsi || 0), name: (a, b) => a.sym.localeCompare(b.sym) };
+  const chg = s => s.live ? s.live.change_pct : s.change_pct;
+  const by = { strength: (a, b) => score(b) - score(a) || (isL() ? chg(b) - chg(a) : chg(a) - chg(b)),
+    chg: (a, b) => chg(b) - chg(a), chgd: (a, b) => chg(a) - chg(b), name: (a, b) => a.sym.localeCompare(b.sym) };
   list.sort(by[sort]);
   const box = document.getElementById("rows"); box.textContent = "";
   if (!list.length) { box.innerHTML = `<div class="empty">Koi share nahi mila.</div>`; return; }
   list.forEach(s => {
-    const b = document.createElement("button"); b.type = "button"; b.className = "item" + (s.setups.length ? " has" : ""); b.setAttribute("role", "listitem");
-    const p = s.live ? s.live.price : s.last, pc = s.live ? s.live.change_pct : s.change_pct;
-    b.innerHTML = `<div style="min-width:0"><div class="sym">${short(s.sym)}</div><div class="nm">${esc(s.name)}</div></div>
-      ${strHtml(s)}
-      <svg aria-hidden="true"></svg>
+    const b = document.createElement("button"); b.type = "button"; b.className = "item " + SIDE + (hasSignal(s) ? " has" : ""); b.setAttribute("role", "listitem");
+    const p = s.live ? s.live.price : s.last, pc = chg(s);
+    b.innerHTML = `<div><div class="sym">${short(s.sym)}</div><div class="nm">${esc(s.name)}</div></div>${strHtml(s)}<svg aria-hidden="true"></svg>
       <div class="px">${inr(p)}<small class="${pc >= 0 ? "up" : "down"}">${pct(pc)}</small></div>
       <div class="tags">${tagsHtml(s)}</div><span class="chev" aria-hidden="true">›</span>`;
-    b.setAttribute("aria-label", `${short(s.sym)}, strength ${s.strength}, ${s.setups.length || s.orb ? (s.orb ? "ORB, " : "") + s.setups.map(k => SETUP[k] ? SETUP[k].t : k).join(", ") : "koi setup nahi"}`);
-    spark(b.querySelector("svg"), s.closes.slice(-45), 110, 30);
+    b.setAttribute("aria-label", `${short(s.sym)}, ${isL() ? "long" : "short"} strength ${score(s)}`);
+    spark(b.querySelector("svg"), s.closes.slice(-45), 100, 30);
     b.onclick = () => { location.hash = short(s.sym); };
     box.appendChild(b);
   });
@@ -294,25 +391,44 @@ function renderRows() {
 /* ---------- detail view */
 function reasons(s) {
   const out = [];
-  if (s.setups.includes("breakout_20d")) out.push(["", "20-din high toda", `${dmon(s.last_date)} ko close ${fmt(s.last)}, jo pichhle 20 din ke sabse unche close ${fmt(s.high20)} se upar hai. Matlab naya high bana.`]);
-  if (s.setups.includes("bull_flag")) out.push(["", "Bull flag", `Pehle tez chadhai hui (10 din mein ${s.run_pct.toFixed(1)}%), phir pichhle 5 din daam sirf ${s.range5_pct.toFixed(1)}% ke chhote daayre mein ruka. Jhande jaisa pattern.`]);
-  if (s.setups.includes("reclaim_ma20")) out.push(["g", "Average ke upar wapas", `Pichhle din daam 20-din average ke neeche tha. ${dmon(s.last_date)} ko ${fmt(s.last)} par band hua, average ${fmt(s.ma20)} ke upar.`]);
-  if (s.setups.includes("oversold")) out.push(["r", "Oversold", `RSI ${s.rsi.toFixed(1)} hai, 30 se neeche. Share kuch din se lagataar gira hai. Uchhal bhi sakta hai, aur bhi gir sakta hai.`]);
-  if (s.setups.includes("oversold_bounce")) out.push(["g", "Oversold bounce", `Pichhle din RSI ${s.rsi_prev.toFixed(1)} (30 se neeche) tha, aur aaj close upar hua.`]);
+  const o = orbOf(s);
+  if (o) out.push([SIDE, `Aaj ka ORB ${isL() ? "▲" : "▼"} ${o.at}`, `9:15–9:30 ki range ${fmt(o.or_low)} se ${fmt(o.or_high)} thi. ${o.at} par 5-min candle ${fmt(o.price)} par range ke ${isL() ? "upar" : "neeche"} band hui.`]);
+  setupsOf(s).forEach(k => out.push([SETUPS[k][1], SETUPS[k][0], SETUPS[k][2](s)]));
   if (!out.length) {
-    const vsMa = s.last >= s.ma20 ? `20-din average (${fmt(s.ma20)}) ke upar hai` : `20-din average (${fmt(s.ma20)}) ke neeche hai`;
-    const toHi = (s.high20 / s.last - 1) * 100;
-    out.push(["plain", "Abhi koi setup nahi", `Close ${fmt(s.last)} ${vsMa}. 20-din high ${fmt(s.high20)} ${toHi > 0 ? toHi.toFixed(1) + "% upar hai" : "ke barabar hai"}. RSI ${s.rsi == null ? "–" : s.rsi.toFixed(1)}.`]);
+    const vs = s.last >= s.ma20 ? `20-din average (${fmt(s.ma20)}) ke upar` : `20-din average (${fmt(s.ma20)}) ke neeche`;
+    out.push(["", `Abhi ${isL() ? "long" : "short"} ka koi daily setup nahi`, `Close ${fmt(s.last)} ${vs} hai. 20-din high ${fmt(s.high20)}, 20-din low ${fmt(s.low20)}. RSI ${s.rsi == null ? "–" : s.rsi.toFixed(1)}.`]);
   }
-  if (s.rsi > 70) out.push(["r", "Dhyan: RSI 70 se upar", `RSI ${s.rsi.toFixed(1)} hai. Share bahut tezi se chadh chuka hai, aise mein palat bhi sakta hai.`]);
   return out;
 }
+function patternsHtml(s) {
+  const P = s.patterns || {}, seen = new Map();
+  const none = `<span class="muted" style="font-size:.85rem">koi nahi</span>`;
+  const rows = TFS.map(([tf, label]) => {
+    const p = P[tf];
+    if (!p) return `<div class="tfrow"><div class="tfl"><b>${label}</b><span>data nahi</span></div><div class="grp"><span class="muted">–</span></div></div>`;
+    const candles = p.found.map(k => { seen.set("c:" + k, k); const c = CANDLES[k]; return `<span class="tag tf ${c[1]}">${c[0]}</span>`; }).join("") || none;
+    const charts = tf === "15m" ? `<span class="muted" style="font-size:.85rem">15 min par chart pattern nahi dekhte (bahut shor)</span>` :
+      ((p.chart || []).map(c => { seen.set("g:" + c.k, c); return `<span class="tag ${chartSide(c)}">${CHARTS[c.k][0]} · ${ST[c.st]}</span>`; }).join("") || none);
+    return `<div class="tfrow"><div class="tfl"><b>${label}</b><span>${stamp(p.at)} wali candle</span></div>
+      <div class="grp"><div><em>Candle pattern</em>${candles}</div><div><em>Chart pattern</em>${charts}</div></div></div>`;
+  }).join("");
+  const ex = [...seen.entries()].map(([id, v]) => id[0] === "c" ? `<li><b>${CANDLES[v][0]}:</b> ${CANDLES[v][2]}</li>` : `<li><b>${CHARTS[v.k][0]}:</b> ${CHARTS[v.k][2](v.lvl)}</li>`).join("");
+  return rows + (ex ? `<ul class="explain">${ex}</ul>` : "");
+}
+function partLabel(s, k) {
+  const tf = k.split("_")[1];
+  if (k.startsWith("tf_")) return PART[k] + ": " + (s.patterns[tf] || { found: [] }).found.filter(x => CANDLES[x][1] === SIDE).map(x => CANDLES[x][0]).join(", ");
+  if (k.startsWith("chart_")) return PART[k] + ": " + ((s.patterns[tf] || {}).chart || []).filter(c => chartSide(c) === SIDE).map(c => CHARTS[c.k][0] + " (" + ST[c.st] + ")").join(", ");
+  return PART[k] || k;
+}
 function bigChart(svg, s, tipEl) {
-  const W = 680, H = 260, L = 6, R = 64, T = 10, B = 24;
+  const W = 680, H = 270, L = 6, R = 64, T = 10, B = 24;
   const c = s.closes, dates = s.dates.slice(), all = c.slice();
   if (s.live) { all.push(s.live.price); dates.push(s.live.time.slice(0, 10)); }
+  const lv = (s.patterns || {}).levels || {};
   const n = all.length, ma = all.map((_, i) => i >= 19 ? all.slice(i - 19, i + 1).reduce((a, b) => a + b, 0) / 20 : null);
-  const lo = Math.min(...all) * 0.995, hi = Math.max(...all.concat([s.high20])) * 1.005;
+  const extra = [s.high20, s.low20].concat(lv.res ? [lv.res[0]] : [], lv.sup ? [lv.sup[0]] : []);
+  const lo = Math.min(...all.concat(extra)) * 0.995, hi = Math.max(...all.concat(extra)) * 1.005;
   const X = i => L + i / (n - 1) * (W - L - R), Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.textContent = "";
   for (let k = 0; k <= 4; k++) {
@@ -320,17 +436,21 @@ function bigChart(svg, s, tipEl) {
     el("line", { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: "var(--line)" }, svg);
     el("text", { x: W - R + 6, y: Y(v) + 4, "font-size": 10, fill: "var(--muted)", "font-family": "var(--mono)" }, svg).textContent = fmt(v, v > 5000 ? 0 : 1);
   }
+  const level = (v, col, lab) => { el("line", { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: col, "stroke-width": 1, "stroke-dasharray": "2 3", opacity: .9 }, svg);
+    el("text", { x: L + 4, y: Y(v) - 4, "font-size": 10, fill: col, "font-family": "var(--mono)" }, svg).textContent = lab + " " + fmt(v); };
+  if (lv.res) level(lv.res[0], "var(--down)", "Resistance");
+  if (lv.sup) level(lv.sup[0], "var(--up)", "Support");
   const pts = c.map((v, i) => X(i).toFixed(1) + "," + Y(v).toFixed(1)).join(" ");
-  el("polygon", { points: `${X(0)},${H - B} ${pts} ${X(c.length - 1)},${H - B}`, fill: "var(--accent-soft)", opacity: .6 }, svg);
-  el("polyline", { points: ma.map((v, i) => v == null ? null : X(i).toFixed(1) + "," + Y(v).toFixed(1)).filter(Boolean).join(" "), fill: "none", stroke: "var(--up)", "stroke-width": 1.5 }, svg);
-  el("line", { x1: X(c.length - 21), x2: X(c.length - 1), y1: Y(s.high20), y2: Y(s.high20), stroke: "var(--muted)", "stroke-width": 1.4, "stroke-dasharray": "5 4" }, svg);
+  el("polygon", { points: `${X(0)},${H - B} ${pts} ${X(c.length - 1)},${H - B}`, fill: "var(--accent-soft)", opacity: .55 }, svg);
+  el("polyline", { points: ma.map((v, i) => v == null ? null : X(i).toFixed(1) + "," + Y(v).toFixed(1)).filter(Boolean).join(" "), fill: "none", stroke: "var(--muted)", "stroke-width": 1.4 }, svg);
+  el("line", { x1: X(c.length - 21), x2: X(c.length - 1), y1: Y(s.high20), y2: Y(s.high20), stroke: "var(--up)", "stroke-width": 1.4, "stroke-dasharray": "5 4" }, svg);
+  el("line", { x1: X(c.length - 21), x2: X(c.length - 1), y1: Y(s.low20), y2: Y(s.low20), stroke: "var(--down)", "stroke-width": 1.4, "stroke-dasharray": "5 4" }, svg);
   el("polyline", { points: pts, fill: "none", stroke: "var(--accent)", "stroke-width": 2.2, "stroke-linejoin": "round" }, svg);
   if (s.live) {
     el("line", { x1: X(c.length - 1), x2: X(n - 1), y1: Y(c[c.length - 1]), y2: Y(s.live.price), stroke: "var(--accent)", "stroke-width": 2, "stroke-dasharray": "3 3" }, svg);
     el("circle", { cx: X(n - 1), cy: Y(s.live.price), r: 4.5, fill: "var(--card)", stroke: "var(--accent)", "stroke-width": 2.5 }, svg);
   } else el("circle", { cx: X(n - 1), cy: Y(c[c.length - 1]), r: 4, fill: "var(--accent)" }, svg);
   [0, Math.floor((n - 1) / 2), n - 1].forEach((i, k) => el("text", { x: X(i), y: H - 6, "text-anchor": ["start", "middle", "end"][k], "font-size": 10, fill: "var(--muted)", "font-family": "var(--mono)" }, svg).textContent = dmon(dates[i]));
-  // hover / touch: show the close of the nearest day
   const cross = el("line", { y1: T, y2: H - B, stroke: "var(--ink)", "stroke-width": 1, opacity: 0 }, svg);
   const dot = el("circle", { r: 4, fill: "var(--ink)", opacity: 0 }, svg);
   const show = e => {
@@ -349,20 +469,26 @@ function bigChart(svg, s, tipEl) {
 function renderDetail(s) {
   const v = document.getElementById("detailView"), isIdx = s.sym === "^NSEI";
   const shown = s.live ? s.live.price : s.last, ch = s.live ? s.live.change_pct : s.change_pct;
+  const lv = (s.patterns || {}).levels || {};
+  const other = isL() ? s.short_strength : s.strength;
+  const when = s.live ? stamp(s.live.time) + " IST (Yahoo)" : dmon(s.last_date) + " ka close" + (s.close_from_quote ? " (Yahoo quote se)" : "");
   v.innerHTML = `<div style="display:grid;gap:14px">
     <button class="back" type="button" id="back">‹ Wapas list par</button>
     <div class="dhead">
-      <div><h2>${short(s.sym)}</h2><p class="muted">${esc(s.name)}${isIdx ? " · index" : ""}</p><div class="tags" style="margin-top:8px">${tagsHtml(s)}</div></div>
+      <div><h2>${short(s.sym)}</h2><p class="muted">${esc(s.name)}${isIdx ? " · index" : ""}</p>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">${strHtml(s)}<span class="muted" style="font-size:.85rem">${isL() ? "Long" : "Short"} strength</span>
+        <button type="button" class="swap" id="swap">${isL() ? "▼ Short dekho" : "▲ Long dekho"} (${other})</button></div></div>
       <div class="dprice"><div class="big">${isIdx ? "" : "₹"}${fmt(shown)}</div>
         <div class="${ch >= 0 ? "up" : "down"} mono" style="font-weight:700">${pct(ch)}</div>
-        <div class="muted" style="font-size:.78rem">${s.live ? s.live.time.slice(0, 10) + " " + s.live.time.slice(11) + " IST (Yahoo)" : dmon(s.last_date) + " ka close"}</div></div>
+        <div class="muted" style="font-size:.78rem">${when}</div></div>
     </div>
-    <div class="panel"><h3>Setup kyun bana? (seedhi bhasha mein)</h3><div class="why" id="why"></div>
-      ${s.orb ? `<div class="orbbox"><b>Aaj ka ORB: ${s.orb.at}</b><span style="font-size:.9rem">9:15–9:30 ki range ${fmt(s.orb.or_low)} se ${fmt(s.orb.or_high)} thi. ${s.orb.at} par 5-min bar ${fmt(s.orb.price)} par iske upar band hua (+${s.orb.pct_over}%).</span></div>` : ""}</div>
-    <div class="panel"><h3>Strength ${s.strength}/100: ye score kaise bana</h3>
-      <ul class="parts">${s.strength_parts.map(([p, k]) => `<li class="${p < 0 ? "neg" : ""}"><b>${p > 0 ? "+" : ""}${p}</b><span>${PART[k] || k}</span></li>`).join("")}
-      <li class="total"><b>${s.strength}</b><span>Kul (0 se 100 ke beech)</span></li></ul>
-      <p class="note">Score batata hai chart kitni tezi se upar ja raha hai. Ye aage ka andaaza nahi hai.</p></div>
+    <div class="panel"><h3>${isL() ? "Long" : "Short"} setup (daily) aur aaj ka ORB</h3><div class="why">${reasons(s).map(([c, t, d]) => `<div class="${c}"><b>${t}</b><span>${d}</span></div>`).join("")}</div></div>
+    <div class="panel"><h3>Candle aur chart patterns, teen timeframe</h3><div class="tfs">${patternsHtml(s)}</div>
+      <p class="note">Hara = tezi wala pattern, laal = mandi wala, saada = neutral. Pattern ek ishara hai, guarantee nahi.</p></div>
+    <div class="panel"><h3>${isL() ? "Long" : "Short"} strength ${score(s)}/100: ye score kaise bana</h3>
+      <ul class="parts">${parts(s).map(([p, k]) => `<li class="${p < 0 ? "neg" : ""}"><b>${p > 0 ? "+" : ""}${p}</b><span>${esc(partLabel(s, k))}</span></li>`).join("") || `<li><b>0</b><span>Is side ka koi point nahi</span></li>`}
+      <li class="total"><b>${score(s)}</b><span>Kul (0 se 100 ke beech)</span></li></ul>
+      <p class="note">Score batata hai chart kitni tezi se ${isL() ? "upar" : "neeche"} ja raha hai. Ye aage ka andaaza nahi hai.</p></div>
     <div class="grid2">
       <div class="panel">
         <h3>${s.closes.length} din ka chart</h3>
@@ -370,17 +496,19 @@ function renderDetail(s) {
         <div class="tip" id="tip"></div>
         <div class="key">
           <span><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--accent)" stroke-width="2"/></svg>Roz ka close</span>
-          <span><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>20-din high</span>
-          <span><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--up)" stroke-width="1.5"/></svg>20-din average</span>
-          ${s.live ? `<span><svg width="12" height="12"><circle cx="6" cy="6" r="4" style="fill:var(--card);stroke:var(--accent)" stroke-width="2"/></svg>Sabse naya daam</span>` : ""}
+          <span><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--muted)" stroke-width="1.5"/></svg>20-din average</span>
+          <span><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--up)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>20-din high</span>
+          <span><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--down)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>20-din low</span>
+          <span>Bindi wali lines: support / resistance</span>
         </div>
       </div>
       <div style="display:grid;gap:14px">
-        <div class="panel"><h3>Ahem levels</h3><dl class="stats" id="stats"></dl></div>
+        <div class="panel"><h3>Ahem levels</h3><dl class="stats" id="stats"></dl>
+          <p class="note">Support / resistance pichhle swing highs aur lows se nikle hain; "baar" = kitni baar daam wahan ruka.</p></div>
         <div class="panel"><h3>RSI ${s.rsi == null ? "–" : s.rsi.toFixed(1)}</h3>
           <div class="meter"><i style="left:${s.rsi || 0}%"></i></div>
           <div class="meterlab"><span>0 · bahut gira</span><span>30</span><span>70</span><span>100 · bahut chadha</span></div></div>
-        ${isIdx ? "" : `<div class="panel calc"><h3>Kitne shares?</h3>
+        ${isIdx ? "" : `<div class="panel calc"><h3>Kitne shares? (${isL() ? "long" : "short"})</h3>
           <div class="f">
             <label>Entry (₹)<input id="ce" type="number" step="0.05" inputmode="decimal"></label>
             <label>Stop-loss (₹)<input id="cs" type="number" step="0.05" inputmode="decimal"></label>
@@ -388,28 +516,30 @@ function renderDetail(s) {
             <label>Account (₹)<input id="cc" type="number" step="1000" value="50000" inputmode="decimal"></label>
           </div>
           <div class="shares" id="csh"></div><div class="out" id="cout"></div>
-          <p class="note">Entry ${dmon(s.last_date)} ka close hai, stop 1% neeche sirf example. Ye hisaab hai, salah nahi.</p></div>`}
+          <p class="note">Entry ${s.live ? "Yahoo ka latest daam" : dmon(s.last_date) + " ka close"} hai; stop 1% ${isL() ? "neeche" : "upar"} sirf example. ${isL() ? "" : "Short mein stop entry ke upar hota hai. "}Ye hisaab hai, salah nahi.</p></div>`}
       </div>
     </div>
-    ${isIdx ? `<div class="panel"><h3>Options ke liye</h3><p class="muted" style="font-size:.9rem">Index ko seedha kharida nahi ja sakta; Nifty futures ya options mein trade hota hai. Ye levels chart padhne ke liye hain. Option ki keemat waqt ke saath ghat'ti hai, khaaskar expiry ke din, aur buyer ka poora premium doob sakta hai.</p></div>` : ""}
+    ${isIdx ? `<div class="panel"><h3>Options ke liye</h3><p class="muted" style="font-size:.9rem">Index ko seedha kharida nahi ja sakta; Nifty futures ya options mein trade hota hai. Tezi ke view mein log call (CE), mandi mein put (PE) dekhte hain. Option ki keemat waqt ke saath ghatti hai, khaaskar expiry ke din, aur buyer ka poora premium doob sakta hai. Ye levels chart padhne ke liye hain, salah nahi.</p></div>` : ""}
   </div>`;
-  document.getElementById("back").onclick = () => { history.length > 1 && location.hash ? history.back() : (location.hash = ""); };
-  document.getElementById("why").innerHTML = reasons(s).map(([c, t, d]) => `<div class="${c}"><b>${t}</b><span>${d}</span></div>`).join("");
-  const st = [["20-din high", fmt(s.high20)], ["20-din average", fmt(s.ma20)], ["6 mahine ka high", fmt(s.high_6m)], ["6 mahine ka low", fmt(s.low_6m)],
+  document.getElementById("back").onclick = () => { location.hash = ""; };
+  document.getElementById("swap").onclick = () => setSide(isL() ? "s" : "l");
+  const st = [["Resistance (upar)", lv.res ? fmt(lv.res[0]) + ` · ${lv.res[1]} baar` : "–"], ["Support (neeche)", lv.sup ? fmt(lv.sup[0]) + ` · ${lv.sup[1]} baar` : "–"],
+    ["20-din high", fmt(s.high20)], ["20-din low", fmt(s.low20)], ["20-din average", fmt(s.ma20)], ["6 mahine high / low", fmt(s.high_6m, 0) + " / " + fmt(s.low_6m, 0)],
     ["5 din mein", pct(s.change_5d)], ["20 din mein", pct(s.change_20d)]];
   document.getElementById("stats").innerHTML = st.map(([k, val]) => `<div><dt>${k}</dt><dd>${val}</dd></div>`).join("");
   bigChart(document.getElementById("chart"), s, document.getElementById("tip"));
   if (!isIdx) {
-    const r05 = x => Math.round(x * 20) / 20;
-    document.getElementById("ce").value = s.last; document.getElementById("cs").value = r05(s.last * 0.99);
+    const r05 = x => Math.round(x * 20) / 20, e0 = s.live ? s.live.price : s.last;
+    document.getElementById("ce").value = e0; document.getElementById("cs").value = r05(e0 * (isL() ? 0.99 : 1.01));
     const calc = () => {
       const g = id => parseFloat(document.getElementById(id).value);
       const e = g("ce"), sl = g("cs"), risk = g("cr"), cash = g("cc"), out = document.getElementById("cout"), sh = document.getElementById("csh");
       if (!(e > 0 && sl > 0 && risk > 0 && cash > 0)) { sh.textContent = "–"; out.textContent = "Saare khaane bharo."; return; }
-      if (sl >= e) { sh.textContent = "0"; out.innerHTML = `<span class="down"><b>Stop entry se neeche hona chahiye.</b></span>`; return; }
-      const per = e - sl, n = Math.max(0, Math.min(Math.floor(risk / per), Math.floor(cash / e)));
+      if (isL() ? sl >= e : sl <= e) { sh.textContent = "0"; out.innerHTML = `<span class="down"><b>${isL() ? "Long mein stop entry se neeche" : "Short mein stop entry se upar"} hona chahiye.</b></span>`; return; }
+      const per = Math.abs(e - sl), n = Math.max(0, Math.min(Math.floor(risk / per), Math.floor(cash / e)));
+      const tgt = isL() ? e + 2 * per : e - 2 * per;
       sh.textContent = n.toLocaleString("en-IN") + " shares";
-      out.innerHTML = n ? `Lagega <b>${inr(n * e, 0)}</b> · stop par loss <b>${inr(n * per, 0)}</b> · 2 guna target <b>${inr(e + 2 * per)}</b> par fayda <b>${inr(n * 2 * per, 0)}</b>`
+      out.innerHTML = n ? `${isL() ? "Kharid" : "Bech (short)"}: <b>${inr(n * e, 0)}</b> · stop par loss <b>${inr(n * per, 0)}</b> · 2 guna target <b>${inr(tgt)}</b> par fayda <b>${inr(n * 2 * per, 0)}</b>`
         : `<span class="down"><b>Stop bahut door hai: ek share ka risk bhi max loss se zyada.</b></span>`;
     };
     document.querySelectorAll(".calc input").forEach(i => i.addEventListener("input", calc)); calc();
@@ -426,6 +556,15 @@ function route() {
   if (s) { renderDetail(s); window.scrollTo(0, 0); document.title = short(s.sym) + " · Nifty 50 Scanner"; }
   else document.title = "Nifty 50 Scanner";
 }
+function renderAll() { renderSide(); renderIndexStrip(); renderChips(); renderRows(); }
+function setSide(x) {
+  SIDE = x; try { localStorage.setItem("side", x); } catch (e) {}
+  renderSide(); if (!DATA) return;
+  renderIndexStrip(); renderChips(); renderRows();
+  if (!document.getElementById("detailView").hidden) route();
+}
+document.getElementById("sideL").onclick = () => setSide("l");
+document.getElementById("sideS").onclick = () => setSide("s");
 
 function ago(iso) {
   const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
@@ -433,24 +572,23 @@ function ago(iso) {
 }
 function header() {
   if (!DATA) return;
-  const d = DATA, n = d.stocks.filter(s => s.setups.length || s.orb).length, o = d.stocks.filter(s => s.orb).length;
-  const orb = d.orb_as_of === "pre-open" ? "ORB 9:35 ke baad" : d.orb_as_of === "closed" || d.orb_as_of === "unavailable" ? "" :
-    `aaj ${o} ORB (${d.orb_as_of.slice(11)} tak)`;
-  document.getElementById("asof").textContent = `${dmon(d.as_of)} ke close tak · ${d.stocks.length} mein se ${n} mein setup` +
-    (orb ? " · " + orb : "") + ` · scan ${ago(d.generated_at)}`;
+  const d = DATA, up = d.stocks.filter(s => s.orb).length, dn = d.stocks.filter(s => s.orb_short).length;
+  const orb = d.orb_as_of === "pre-open" ? "ORB 9:35 ke baad" : ["closed", "unavailable"].includes(d.orb_as_of) ? "" : `aaj ORB ▲${up} ▼${dn} (${d.orb_as_of.slice(11)} tak)`;
+  document.getElementById("asof").textContent = `Daily: ${dmon(d.as_of)} ke close tak` + (orb ? " · " + orb : "") + ` · scan ${ago(d.generated_at)}`;
 }
 function load(first) {
   return fetch("data.json?t=" + Date.now(), { cache: "no-store" }).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }).then(d => {
     const changed = !DATA || d.generated_at !== DATA.generated_at;
     DATA = d; header();
     if (!changed) return;
-    renderIndexStrip(); renderChips(); renderRows();
+    renderAll();
     // an open share page is left alone on a refresh, so a half-typed calculator is not wiped
     if (first || document.getElementById("detailView").hidden) route();
   }).catch(e => {
     if (first) document.getElementById("asof").textContent = "Data load nahi hua (" + e.message + "). Page refresh karo.";
   });
 }
+renderSide();
 load(true);
 setInterval(() => load(false), 5 * 60e3);
 setInterval(header, 60e3);
