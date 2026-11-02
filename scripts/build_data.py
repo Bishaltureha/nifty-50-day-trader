@@ -290,7 +290,10 @@ def candle_patterns(bars, daily=False):
 # Chart patterns, from swing points. A swing high is a bar whose high is the highest of the
 # SWING bars on each side; a swing low likewise. Only patterns whose last swing is recent count.
 CHART = {"double_bottom": "long", "double_top": "short", "inv_head_shoulders": "long", "head_shoulders": "short",
-         "asc_triangle": "long", "desc_triangle": "short", "sym_triangle": ""}
+         "asc_triangle": "long", "desc_triangle": "short", "sym_triangle": "",
+         "cup_handle": "long", "inv_cup_handle": "short", "rounding_bottom": "long", "rounding_top": "short",
+         "falling_wedge": "long", "rising_wedge": "short"}
+CUP_DEPTH = {True: (0.08, 0.40), False: (0.02, 0.15)}   # daily / hourly: how deep a cup may be
 SWING = 3
 RECENT = 20    # the pattern's last swing must be within this many bars of the end
 
@@ -311,7 +314,79 @@ def near(a, b, pct):
     return abs(a - b) / min(a, b) * 100 <= pct
 
 
-def chart_patterns(bars):
+def invert(bars):
+    """Turn a chart upside down (1 / price), so a rule written for the way up finds its mirror."""
+    return [{"t": b["t"], "o": 1 / b["o"], "h": 1 / b["l"], "l": 1 / b["h"], "c": 1 / b["c"]} for b in bars]
+
+
+def cup(bars, dmin, dmax):
+    """Cup and handle, or a rounding bottom still on its way up to the rim. -> pattern or None.
+    Left rim: a swing high. Cup: a U, its low in the middle 60% of the width, at least 15 bars
+    wide and dmin-dmax deep, with some bars near the bottom (a U, not a V). Right rim: the first
+    bar back within 3% of the left rim. Handle: the bars after the right rim until a close above
+    the rim; it may give back at most half the cup and last at most half its width."""
+    n, last = len(bars), bars[-1]["c"]
+    hi, _ = swings(bars)
+    best = None
+    for a, L in hi:
+        if a < n - 150 or a > n - 15:
+            continue
+        bi = min(range(a + 1, n), key=lambda i: bars[i]["l"])
+        B = bars[bi]["l"]
+        if bi >= n - 3 or not dmin <= (L - B) / L <= dmax:
+            continue
+        ri = next((i for i in range(bi + 1, n) if bars[i]["h"] >= L * 0.97), None)
+        end = ri if ri is not None else n - 1
+        width = end - a
+        low_third = B + (L - B) / 3
+        if width < 15 or not 0.2 <= (bi - a) / width <= 0.8 \
+                or sum(1 for b in bars[a:end + 1] if b["c"] <= low_third) < max(3, 0.15 * width):
+            continue
+        if ri is None:   # still climbing the right side
+            if (last - B) / (L - B) >= 0.5:
+                cand = {"k": "rounding_bottom", "st": "forming", "lvl": L, "_w": width}
+            else:
+                continue
+        else:
+            if n - 1 - ri > 40:
+                continue
+            rim = max(L, bars[ri]["h"])
+            k = next((i for i in range(ri + 1, n) if bars[i]["c"] > rim), None)
+            handle = bars[ri + 1:k if k is not None else n]
+            if len(handle) > width / 2 or (handle and min(b["l"] for b in handle) < rim - 0.5 * (rim - B)):
+                continue
+            if k is not None and (len(handle) < 3 or k < n - 20 or last <= rim):
+                continue   # no real handle, an old breakout, or a failed one (back below the rim)
+            cand = {"k": "cup_handle", "st": "confirmed" if k is not None else "forming", "lvl": rim, "_w": width}
+        if best is None or cand["_w"] > best["_w"]:
+            best = cand
+    if best:
+        del best["_w"]
+    return best
+
+
+def rising_wedge(bars):
+    """The last 2-3 swing highs and lows (within 50 bars) all rising, the lows faster than the
+    highs, so the lines meet. -> pattern or None. Breaking the last swing low confirms it."""
+    n, last = len(bars), bars[-1]["c"]
+    hi, lo = swings(bars)
+    rh = [x for x in hi if x[0] >= n - 50][-3:]
+    rl = [x for x in lo if x[0] >= n - 50][-3:]
+    if len(rh) < 2 or len(rl) < 2 or max(rh[-1][0], rl[-1][0]) < n - 1 - RECENT:
+        return None
+    rising = lambda pts: all(b[1] > a[1] * 1.003 for a, b in zip(pts, pts[1:]))
+    slope = lambda pts: (pts[-1][1] / pts[0][1] - 1) / max(1, pts[-1][0] - pts[0][0])
+    if not (rising(rh) and rising(rl)) or slope(rl) <= slope(rh) * 1.2:
+        return None
+    return {"k": "rising_wedge", "st": "confirmed" if last < rl[-1][1] else "forming", "lvl": rl[-1][1]}
+
+
+def mirrored(p, key):
+    """A pattern found on the inverted chart, back in real prices under its mirror's name."""
+    return p and {"k": key, "st": p["st"], "lvl": 1 / p["lvl"]}
+
+
+def chart_patterns(bars, daily=True):
     """-> [{"k": key, "st": "forming"|"confirmed", "lvl": the level that confirms it}]."""
     if len(bars) < 40:
         return []
@@ -368,6 +443,18 @@ def chart_patterns(bars):
         elif falling_highs and rising_lows:
             st = "up" if last > rh[-1] else "down" if last < rl[-1] else "forming"
             out.append({"k": "sym_triangle", "st": st, "lvl": round(rh[-1] if st != "down" else rl[-1], 2)})
+    # cup and handle family and wedges; the short side is the long rule on the upside-down chart
+    dmin, dmax = CUP_DEPTH[daily]
+    up = cup(bars, dmin, dmax)
+    down = cup(invert(bars), dmin, dmax)
+    names = {"cup_handle": "inv_cup_handle", "rounding_bottom": "rounding_top"}
+    down = mirrored(down, names[down["k"]]) if down else None
+    if up and down:   # both ways at once: keep a confirmed one over a forming one, else neither
+        up, down = (up, None) if up["st"] > down["st"] else (None, down) if down["st"] > up["st"] else (None, None)
+    out += [x for x in (up, down) if x]
+    out += [x for x in (rising_wedge(bars), mirrored(rising_wedge(invert(bars)), "falling_wedge")) if x]
+    for x in out:
+        x["lvl"] = round(x["lvl"], 2)
     return out
 
 
@@ -412,7 +499,7 @@ def patterns_for(daily_series, m15_series, now_utc):
             h = [x for x in hourly(b15) if x["n"] == 4]
             if h:
                 out["1h"] = {"at": h[-1]["t"].strftime("%Y-%m-%d %H:%M"), "found": candle_patterns(h),
-                             "chart": chart_patterns(h), "ema": ema_state(h)}
+                             "chart": chart_patterns(h, daily=False), "ema": ema_state(h)}
     return out
 
 

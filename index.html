@@ -249,6 +249,12 @@ const CHARTS = {
   asc_triangle: ["Ascending triangle", "l", l => `Upar seedhi chhat (${fmt(l)}) aur neeche har baar uncha low. Chhat todne par tezi ka pattern.`],
   desc_triangle: ["Descending triangle", "s", l => `Neeche seedha farsh (${fmt(l)}) aur upar har baar neecha high. Farsh todne par mandi ka pattern.`],
   sym_triangle: ["Symmetrical triangle", "", l => `High neeche aa rahe hain aur low upar ja rahe hain: daam sikud raha hai. Jidhar se toote, wahi direction.`],
+  cup_handle: ["Cup & handle", "l", l => `Daam gol "U" (cup) bana kar purane high ke paas wapas aaya, phir thoda ruka ya halka gira (handle). Rim ${fmt(l)} ke upar close hone par pattern pura maana jaata hai.`],
+  inv_cup_handle: ["Inverted cup & handle", "s", l => `Ulta cup: daam gol "∩" bana kar purane low ke paas wapas aaya, phir thoda upar uchhla (handle). Rim ${fmt(l)} ke neeche close hone par pattern pura.`],
+  rounding_bottom: ["Rounding bottom", "l", l => `Daam dheere-dheere gol "U" mein neeche se wapas upar aa raha hai; aadhe se zyada raasta tay ho chuka. Purana high (rim) ${fmt(l)} hai: wahan tak pahunche to cup & handle ban sakta hai.`],
+  rounding_top: ["Rounding top", "s", l => `Daam dheere-dheere gol "∩" mein upar se wapas neeche aa raha hai; aadhe se zyada raasta tay ho chuka. Purana low (rim) ${fmt(l)} hai.`],
+  falling_wedge: ["Falling wedge", "l", l => `High aur low dono neeche ja rahe hain, par paas-paas aa rahe hain: bechne walon ka zor kam ho raha hai. ${fmt(l)} ke upar todne par tezi ka pattern.`],
+  rising_wedge: ["Rising wedge", "s", l => `High aur low dono upar ja rahe hain, par paas-paas aa rahe hain: kharidaaron ka zor kam ho raha hai. ${fmt(l)} ke neeche todne par mandi ka pattern.`],
 };
 const EMA_ST = { up: ["Tezi: daam > EMA 8 > EMA 34", "l"], down: ["Mandi: daam < EMA 8 < EMA 34", "s"], mixed: ["Mixed: EMA 8/34 ek line mein nahi", ""] };
 const ST = { forming: "ban raha hai", confirmed: "toda / confirm", up: "upar toda", down: "neeche toda" };
