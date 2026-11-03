@@ -586,7 +586,9 @@ function header() {
   if (!DATA) return;
   const d = DATA, up = d.stocks.filter(s => s.orb).length, dn = d.stocks.filter(s => s.orb_short).length;
   const orb = d.orb_as_of === "pre-open" ? "ORB 9:35 ke baad" : ["closed", "unavailable"].includes(d.orb_as_of) ? "" : `aaj ORB ▲${up} ▼${dn} (${d.orb_as_of.slice(11)} tak)`;
-  document.getElementById("asof").textContent = `Daily: ${dmon(d.as_of)} ke close tak` + (orb ? " · " + orb : "") + ` · scan ${ago(d.generated_at)}`;
+  const lv = (d.index && d.index.live) || (d.stocks.find(s => s.live) || {}).live;
+  const price = lv ? `Daam: ${stamp(lv.time)} IST` : `Daam: ${dmon(d.as_of)} ka close`;
+  document.getElementById("asof").textContent = price + (orb ? " · " + orb : "") + ` · setups ${dmon(d.as_of)} ke close par` + ` · scan ${ago(d.generated_at)}`;
 }
 function load(first) {
   return fetch("data.json?t=" + Date.now(), { cache: "no-store" }).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }).then(d => {
