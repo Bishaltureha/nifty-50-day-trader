@@ -19,7 +19,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: update-data
+  group: update-data-v2
   cancel-in-progress: false
 
 jobs:
@@ -66,4 +66,40 @@ jobs:
             fi
             # wake 1 minute after the next quarter hour (IST quarters line up with UTC ones)
             sleep $(( 900 - now % 900 + 60 ))
+          done
+
+  # Every minute in market hours: the latest price of each share -> live.json on the
+  # `live` branch (one commit, force-pushed, so history stays small and Pages does not
+  # rebuild). The site reads it through the GitHub API and updates prices each minute.
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Write live.json every minute
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          out="$RUNNER_TEMP/live"
+          start=$(date +%s)
+          limit=$((5 * 3600 + 35 * 60))
+          while (( $(date +%s) - start < limit )); do
+            dow=$(TZ=Asia/Kolkata date +%u)
+            hm=$((10#$(TZ=Asia/Kolkata date +%H%M)))
+            if [[ $dow -le 5 && $hm -ge 914 && $hm -le 1535 ]]; then
+              rm -rf "$out" && mkdir -p "$out"
+              if python3 scripts/build_live.py "$out/live.json"; then
+                (cd "$out" && git init -q -b live \
+                  && git config user.name "github-actions[bot]" \
+                  && git config user.email "41898282+github-actions[bot]@users.noreply.github.com" \
+                  && git add live.json && git commit -q -m "Live prices" \
+                  && git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" live) \
+                  || echo "push failed, next minute"
+              fi
+            fi
+            now=$(date +%s)
+            sleep $(( 60 - now % 60 + 5 ))
           done

@@ -593,7 +593,7 @@ function header() {
 function load(first) {
   return fetch("data.json?t=" + Date.now(), { cache: "no-store" }).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }).then(d => {
     const changed = !DATA || d.generated_at !== DATA.generated_at;
-    DATA = d; header();
+    DATA = d; applyLive(); header();
     if (!changed) return;
     renderAll();
     // an open share page is left alone on a refresh, so a half-typed calculator is not wiped
@@ -602,8 +602,41 @@ function load(first) {
     if (first) document.getElementById("asof").textContent = "Data load nahi hua (" + e.message + "). Page refresh karo.";
   });
 }
+// Minute prices: the workflow's `live` job writes live.json to the `live` branch every
+// minute in market hours; it is laid over data.json (only prices newer than a share's
+// last daily close count), so prices move without waiting for the 15-minute scan.
+const LIVE_URL = "https://api.github.com/repos/Bishaltureha/nifty-50-day-trader/contents/live.json?ref=live";
+let LIVE = null;
+function applyLive() {
+  if (!DATA || !LIVE) return false;
+  let moved = false;
+  for (const s of [DATA.index, ...DATA.stocks]) {
+    const lp = s && LIVE.prices[s.sym];
+    if (!lp || lp.time.slice(0, 10) <= s.last_date || (s.live && s.live.time >= lp.time)) continue;
+    s.live = { price: lp.price, time: lp.time, change_pct: Math.round((lp.price / s.last - 1) * 10000) / 100 };
+    moved = true;
+  }
+  return moved;
+}
+function marketHours() {
+  const ist = new Date(Date.now() + 330 * 60e3), d = ist.getUTCDay(), m = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+  return d >= 1 && d <= 5 && m >= 9 * 60 + 14 && m <= 15 * 60 + 40;
+}
+function loadLive(first) {
+  if (!first && !marketHours()) return;
+  fetch(LIVE_URL, { headers: { Accept: "application/vnd.github.raw+json" } })
+    .then(r => r.ok ? r.json() : null).then(l => {
+      if (!l || !l.prices) return;
+      LIVE = l;
+      if (!applyLive()) return;
+      header();
+      // an open share page is left alone, so a half-typed calculator is not wiped
+      if (document.getElementById("detailView").hidden) renderAll();
+    }).catch(() => {});
+}
 renderSide();
-load(true);
+load(true).then(() => loadLive(true));
+setInterval(() => loadLive(false), 60e3);
 setInterval(() => load(false), 5 * 60e3);
 setInterval(header, 60e3);
 document.getElementById("q").addEventListener("input", renderRows);
