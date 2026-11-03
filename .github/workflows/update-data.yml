@@ -2,8 +2,8 @@ name: Update scanner data
 
 on:
   schedule:
-    - cron: "*/15 3-10 * * 1-5"  # every 15 minutes, 08:30 to 16:15 IST (GitHub may start a run a few minutes late)
-    - cron: "0 14 * * 1-5"       # 19:30 IST, once Yahoo has filled the day's close
+    - cron: "7,22,37,52 3-10 * * 1-5"  # every 15 minutes, 08:37 to 16:22 IST, off the busy :00/:15 marks GitHub tends to drop
+    - cron: "17 14 * * 1-5"      # 19:47 IST, once Yahoo has filled the day's close
   workflow_dispatch:
 
 permissions:
