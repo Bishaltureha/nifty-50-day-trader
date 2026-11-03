@@ -146,12 +146,25 @@ select.sort { font: 600 .85rem var(--body); padding: 9px 10px; border-radius: 8p
 .parts li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: .9rem }
 .parts li b { font: 700 .9rem var(--mono); text-align: right } .parts li.neg b { color: var(--down) }
 .parts .total { border-top: 1px solid var(--line); padding-top: 6px; font-weight: 700 }
-.calc { display: grid; gap: 10px }
-.calc .f { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
-.calc label { display: grid; gap: 3px; font-size: .78rem; color: var(--muted) }
-.calc input { font: 600 .95rem var(--mono); padding: 8px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); width: 100% }
-.calc .out { font-size: .9rem } .calc .out b { font-family: var(--mono) }
-.calc .shares { font: 800 2rem/1 var(--display) }
+.plan-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start }
+@media (max-width: 760px) { .plan-grid { grid-template-columns: 1fr } }
+.f3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px }
+.f3 label, .opt label { display: grid; gap: 3px; font-size: .78rem; color: var(--muted) }
+.f3 input, .opt input { font: 600 .95rem var(--mono); padding: 8px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); width: 100%; min-width: 0 }
+.f3 label.sl input { border-color: var(--down) } .f3 label.tp input { border-color: var(--up) }
+.sugg { display: grid; gap: 5px; margin-top: 10px } .sugg em { font-style: normal; font-size: .74rem; color: var(--muted) }
+.sugg div { display: flex; flex-wrap: wrap; gap: 5px }
+.mini { font: 600 .74rem/1 var(--body); padding: 6px 8px; border-radius: 7px; border: 1px solid var(--line); background: var(--card); cursor: pointer; white-space: nowrap }
+.mini.sl { border-color: var(--down); color: var(--down) } .mini.tp { border-color: var(--up); color: var(--up) }
+.mini b { font-family: var(--mono); font-weight: 700 }
+.ladder { width: 100%; max-width: 380px; height: auto; display: block }
+.planout { font-size: .9rem; display: grid; gap: 4px } .planout b { font-family: var(--mono) }
+.opt { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px }
+.opt .f5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px }
+.res { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px }
+.res div { padding: 10px 12px; border-radius: 10px; background: var(--band); display: grid; gap: 2px; font-size: .85rem }
+.res div.l { background: var(--up-soft) } .res div.s { background: var(--down-soft) }
+.res b { font: 700 1.05rem var(--mono) }
 .swap { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 6px 10px; cursor: pointer; font-weight: 700; font-size: .85rem }
 footer { font-size: .8rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 4px }
 </style>
@@ -506,6 +519,7 @@ function renderDetail(s) {
       <ul class="parts">${parts(s).map(([p, k]) => `<li class="${p < 0 ? "neg" : ""}"><b>${p > 0 ? "+" : ""}${p}</b><span>${esc(partLabel(s, k))}</span></li>`).join("") || `<li><b>0</b><span>Is side ka koi point nahi</span></li>`}
       <li class="total"><b>${score(s)}</b><span>Kul (0 se 100 ke beech)</span></li></ul>
       <p class="note">Score batata hai chart kitni tezi se ${isL() ? "upar" : "neeche"} ja raha hai. Ye aage ka andaaza nahi hai.</p></div>
+    ${planHtml(s, isIdx)}
     <div class="grid2">
       <div class="panel">
         <h3>${s.closes.length} din ka chart</h3>
@@ -526,18 +540,8 @@ function renderDetail(s) {
         <div class="panel"><h3>RSI ${s.rsi == null ? "–" : s.rsi.toFixed(1)}</h3>
           <div class="meter"><i style="left:${s.rsi || 0}%"></i></div>
           <div class="meterlab"><span>0 · bahut gira</span><span>30</span><span>70</span><span>100 · bahut chadha</span></div></div>
-        ${isIdx ? "" : `<div class="panel calc"><h3>Kitne shares? (${isL() ? "long" : "short"})</h3>
-          <div class="f">
-            <label>Entry (₹)<input id="ce" type="number" step="0.05" inputmode="decimal"></label>
-            <label>Stop-loss (₹)<input id="cs" type="number" step="0.05" inputmode="decimal"></label>
-            <label>Max loss (₹)<input id="cr" type="number" step="50" value="500" inputmode="decimal"></label>
-            <label>Account (₹)<input id="cc" type="number" step="1000" value="50000" inputmode="decimal"></label>
-          </div>
-          <div class="shares" id="csh"></div><div class="out" id="cout"></div>
-          <p class="note">Entry ${s.live || s.provisional ? "Yahoo ka latest daam" : dmon(s.last_date) + " ka close"} hai; stop 1% ${isL() ? "neeche" : "upar"} sirf example. ${isL() ? "" : "Short mein stop entry ke upar hota hai. "}Ye hisaab hai, salah nahi.</p></div>`}
       </div>
     </div>
-    ${isIdx ? `<div class="panel"><h3>Options ke liye</h3><p class="muted" style="font-size:.9rem">Index ko seedha kharida nahi ja sakta; Nifty futures ya options mein trade hota hai. Tezi ke view mein log call (CE), mandi mein put (PE) dekhte hain. Option ki keemat waqt ke saath ghatti hai, khaaskar expiry ke din, aur buyer ka poora premium doob sakta hai. Ye levels chart padhne ke liye hain, salah nahi.</p></div>` : ""}
   </div>`;
   document.getElementById("back").onclick = () => { location.hash = ""; };
   document.getElementById("swap").onclick = () => setSide(isL() ? "s" : "l");
@@ -547,22 +551,146 @@ function renderDetail(s) {
     ["5 din mein", pct(s.change_5d)], ["20 din mein", pct(s.change_20d)]];
   document.getElementById("stats").innerHTML = st.map(([k, val]) => `<div><dt>${k}</dt><dd>${val}</dd></div>`).join("");
   bigChart(document.getElementById("chart"), s, document.getElementById("tip"));
-  if (!isIdx) {
-    const r05 = x => Math.round(x * 20) / 20, e0 = s.live ? s.live.price : s.last;
-    document.getElementById("ce").value = e0; document.getElementById("cs").value = r05(e0 * (isL() ? 0.99 : 1.01));
-    const calc = () => {
-      const g = id => parseFloat(document.getElementById(id).value);
-      const e = g("ce"), sl = g("cs"), risk = g("cr"), cash = g("cc"), out = document.getElementById("cout"), sh = document.getElementById("csh");
-      if (!(e > 0 && sl > 0 && risk > 0 && cash > 0)) { sh.textContent = "–"; out.textContent = "Saare khaane bharo."; return; }
-      if (isL() ? sl >= e : sl <= e) { sh.textContent = "0"; out.innerHTML = `<span class="down"><b>${isL() ? "Long mein stop entry se neeche" : "Short mein stop entry se upar"} hona chahiye.</b></span>`; return; }
-      const per = Math.abs(e - sl), n = Math.max(0, Math.min(Math.floor(risk / per), Math.floor(cash / e)));
-      const tgt = isL() ? e + 2 * per : e - 2 * per;
-      sh.textContent = n.toLocaleString("en-IN") + " shares";
-      out.innerHTML = n ? `${isL() ? "Kharid" : "Bech (short)"}: <b>${inr(n * e, 0)}</b> · stop par loss <b>${inr(n * per, 0)}</b> · 2 guna target <b>${inr(tgt)}</b> par fayda <b>${inr(n * 2 * per, 0)}</b>`
-        : `<span class="down"><b>Stop bahut door hai: ek share ka risk bhi max loss se zyada.</b></span>`;
-    };
-    document.querySelectorAll(".calc input").forEach(i => i.addEventListener("input", calc)); calc();
+  setupPlan(s, isIdx);
+}
+
+/* ---------- SL / TP plan */
+const PREF = {};
+try { Object.assign(PREF, JSON.parse(localStorage.getItem("plan") || "{}")); } catch (e) {}
+const savePref = () => { try { localStorage.setItem("plan", JSON.stringify(PREF)); } catch (e) {} };
+const step = (p, idx) => idx ? 100 : p > 2000 ? 50 : p > 500 ? 10 : p > 100 ? 5 : 1;
+function planLevels(s) {
+  // every level the page knows, with a name; the plan offers the ones on the right side of the entry
+  const out = [], add = (name, v) => { if (v != null && isFinite(v)) out.push([name, v]); };
+  const orb = s.orb || s.orb_short, p1 = (s.patterns || {})["1h"] || {}, lv = (s.patterns || {}).levels || {};
+  if (orb) { add("Aaj ki range ka low", orb.or_low); add("Aaj ki range ka high", orb.or_high); }
+  if (lv.sup) add("Support", lv.sup[0]);
+  if (lv.res) add("Resistance", lv.res[0]);
+  if (p1.ema) { add("EMA 34 (1 ghanta)", p1.ema.slow); add("EMA 8 (1 ghanta)", p1.ema.fast); }
+  add("EMA 34 (daily)", s.ema_slow[s.ema_slow.length - 1]);
+  add("20-din high", s.high20); add("20-din low", s.low20);
+  // the close before today's prices: last_date's close once a newer price exists, else the one before it
+  add("Kal ka close", !s.provisional && s.live && s.live.time.slice(0, 10) > s.last_date ? s.last : s.prev_close);
+  return out;
+}
+function planHtml(s, isIdx) {
+  const L = isL(), unit = isIdx ? "" : "₹";
+  return `<div class="panel"><h3>SL / TP plan (${L ? "long" : "short"}${isIdx ? `, option: ${L ? "Call (CE)" : "Put (PE)"}` : ""})</h3>
+    <p class="note">${isIdx ? `SL aur TP Nifty ke level mein likho, jaise "23000 ke ${L ? "neeche" : "upar"} gaya to bahar". Neeche option ka hisaab usi se banta hai.` : "SL aur TP share ke daam mein likho."} Sujhaav par click karo ya khud likho.</p>
+    <div class="plan-grid">
+      <div>
+        <div class="f3">
+          <label>Entry ${unit}<input id="pe" type="number" step="0.05" inputmode="decimal"></label>
+          <label class="sl">Stop-loss (SL) ${unit}<input id="ps" type="number" step="0.05" inputmode="decimal"></label>
+          <label class="tp">Target (TP) ${unit}<input id="pt" type="number" step="0.05" inputmode="decimal"></label>
+        </div>
+        <div class="sugg"><em>SL ke sujhaav (${L ? "entry ke neeche" : "entry ke upar"})</em><div id="slChips"></div></div>
+        <div class="sugg"><em>TP ke sujhaav (${L ? "entry ke upar" : "entry ke neeche"})</em><div id="tpChips"></div></div>
+      </div>
+      <div style="display:grid;gap:8px"><svg class="ladder" id="ladder" viewBox="0 0 360 190" role="img" aria-label="TP, entry aur SL"></svg><div class="planout" id="planOut"></div></div>
+    </div>
+    ${isIdx ? `<div class="opt"><h3>Option ka hisaab (${L ? "CE" : "PE"} kharidna)</h3>
+      <div class="f5">
+        <label>Premium (₹)<input id="op" type="number" step="0.05" inputmode="decimal" placeholder="jaise 150"></label>
+        <label>Delta<input id="od" type="number" step="0.05" min="0.05" max="1" inputmode="decimal"></label>
+        <label>Lot size<input id="ol" type="number" step="1" inputmode="numeric"></label>
+        <label>Kitne lot<input id="on" type="number" step="1" min="1" inputmode="numeric"></label>
+        <label>Max loss (₹)<input id="om" type="number" step="500" inputmode="decimal"></label>
+      </div>
+      <div class="res" id="optOut"></div>
+      <p class="note">Premium ka andaaza: Nifty 1 point hile to premium lagbhag delta jitna hilta hai (ATM ke paas ~0.5). Ye time decay (theta), IV aur expiry ke din ki tezi ko nahi ginta, isliye asli premium alag hoga, khaaskar expiry ke din. Lot size 65 (NSE, Jan 2026 se); badla ho to box mein theek karo. Option buyer ka poora premium doob sakta hai.</p></div>`
+    : `<div class="opt"><h3>Kitne shares?</h3>
+      <div class="f5">
+        <label>Max loss (₹)<input id="om" type="number" step="50" inputmode="decimal"></label>
+        <label>Account (₹)<input id="oc" type="number" step="1000" inputmode="decimal"></label>
+      </div>
+      <div class="res" id="optOut"></div></div>`}
+    <p class="note">Ye hisaab hai, salah nahi. SL har trade mein pehle se tay karo aur use mat hilao.</p></div>`;
+}
+function setupPlan(s, isIdx) {
+  const L = isL(), $ = id => document.getElementById(id), num = id => parseFloat($(id).value);
+  const entry0 = s.live ? s.live.price : s.last, st = step(entry0, isIdx);
+  const lv = planLevels(s);
+  // round numbers near the entry (23,700 / 23,600 for Nifty)
+  const base = Math.floor(entry0 / st) * st;
+  [base, base - st, base + st, base + 2 * st].forEach(v => lv.push(["Round number", v]));
+  const r05 = x => Math.round(x * 20) / 20;
+  const chips = (box, cls, list) => {
+    $(box).innerHTML = list.map(([name, v]) => `<button type="button" class="mini ${cls}" data-v="${v}">${name} <b>${fmt(v)}</b></button>`).join("") || `<span class="muted" style="font-size:.8rem">is taraf koi level nahi</span>`;
+    $(box).querySelectorAll("button").forEach(b => b.onclick = () => { $(cls === "sl" ? "ps" : "pt").value = b.dataset.v; update(); });
+  };
+  const sideOf = v => L ? v < entry0 : v > entry0;
+  const near = (a, b) => Math.abs(a - b) / entry0 < 0.0005;
+  const uniq = arr => arr.filter((x, i) => arr.findIndex(y => near(y[1], x[1])) === i);
+  const byDist = (a, b) => Math.abs(a[1] - entry0) - Math.abs(b[1] - entry0);
+  const slList = uniq(lv.filter(([, v]) => sideOf(v) && Math.abs(v - entry0) / entry0 > 0.001)).sort(byDist).slice(0, 7);
+  const named = slList.find(([n]) => n !== "Round number");
+  $("pe").value = entry0;
+  $("ps").value = named ? named[1] : r05(entry0 * (L ? 0.99 : 1.01));
+  const tpChips = () => {
+    const e = num("pe"), sl = num("ps"), r = Math.abs(e - sl);
+    const list = uniq(lv.filter(([, v]) => (L ? v > e : v < e) && Math.abs(v - e) / e > 0.001)).sort(byDist).slice(0, 5);
+    if (r > 0) [1, 2].forEach(k => list.push([k + "R (risk ka " + k + " guna)", r05(L ? e + k * r : e - k * r)]));
+    chips("tpChips", "tp", list);
+  };
+  chips("slChips", "sl", slList);
+  const e0 = num("pe"), r0 = Math.abs(e0 - num("ps"));
+  $("pt").value = r05(L ? e0 + 2 * r0 : e0 - 2 * r0);
+  if (isIdx) {
+    $("od").value = PREF.delta || 0.5; $("ol").value = PREF.lot || 65; $("on").value = PREF.lots || 1; $("om").value = PREF.maxloss || 5000;
+    if (PREF.premium) $("op").value = PREF.premium;
+  } else { $("om").value = PREF.smax || 500; $("oc").value = PREF.acct || 50000; }
+
+  function ladder(e, sl, tp, ok) {
+    const svg = $("ladder"); svg.textContent = "";
+    if (!ok) return;
+    const vals = [e, sl, tp], lo = Math.min(...vals), hi = Math.max(...vals), Y = v => 170 - (v - lo) / (hi - lo || 1) * 150;
+    el("rect", { x: 80, y: Math.min(Y(tp), Y(e)), width: 120, height: Math.abs(Y(e) - Y(tp)), fill: "var(--up-soft)" }, svg);
+    el("rect", { x: 80, y: Math.min(Y(sl), Y(e)), width: 120, height: Math.abs(Y(e) - Y(sl)), fill: "var(--down-soft)" }, svg);
+    [[tp, "TP", "var(--up)"], [e, "Entry", "var(--ink)"], [sl, "SL", "var(--down)"]].forEach(([v, lab, col]) => {
+      el("line", { x1: 80, x2: 200, y1: Y(v), y2: Y(v), stroke: col, "stroke-width": 2 }, svg);
+      el("text", { x: 72, y: Y(v) + 4, "text-anchor": "end", "font-size": 12, fill: col, "font-family": "var(--body)", "font-weight": 700 }, svg).textContent = lab;
+      const d = v - e, txt = lab === "Entry" ? fmt(v) : `${fmt(v)}  ${d >= 0 ? "+" : ""}${fmt(d, isIdx ? 0 : 2)}${isIdx ? " pts" : ""}`;
+      el("text", { x: 208, y: Y(v) + 4, "font-size": 11, fill: "var(--ink)", "font-family": "var(--mono)" }, svg).textContent = txt;
+    });
   }
+  function update() {
+    const e = num("pe"), sl = num("ps"), tp = num("pt"), out = $("planOut"), opt = $("optOut");
+    const okSl = e > 0 && sl > 0 && (L ? sl < e : sl > e), okTp = e > 0 && tp > 0 && (L ? tp > e : tp < e);
+    ladder(e, sl, tp, okSl && okTp);
+    if (!okSl || !okTp) {
+      out.innerHTML = `<span class="down"><b>${!okSl ? `SL entry ke ${L ? "neeche" : "upar"} hona chahiye.` : `TP entry ke ${L ? "upar" : "neeche"} hona chahiye.`}</b></span>`;
+      opt.innerHTML = ""; return;
+    }
+    const risk = Math.abs(e - sl), reward = Math.abs(tp - e), u = isIdx ? " pts" : "";
+    out.innerHTML = `<span>Risk: <b>${fmt(risk, isIdx ? 0 : 2)}${u}</b> (${(risk / e * 100).toFixed(2)}%) · Reward: <b>${fmt(reward, isIdx ? 0 : 2)}${u}</b> (${(reward / e * 100).toFixed(2)}%)</span>
+      <span>Reward : Risk = <b>${(reward / risk).toFixed(1)} : 1</b>${reward / risk < 1 ? ` <span class="down">· target risk se chhota hai</span>` : ""}</span>
+      <span class="muted">${isIdx ? `Nifty ${fmt(sl, 0)} ke ${L ? "neeche" : "upar"} gaya to bahar; ${fmt(tp, 0)} par fayda lo.` : `${fmt(sl)} ke ${L ? "neeche" : "upar"} gaya to bahar; ${fmt(tp)} par fayda lo.`}</span>`;
+    tpChips();
+    if (isIdx) {
+      const prem = num("op"), delta = num("od"), lot = num("ol"), lots = Math.max(1, Math.floor(num("on") || 1)), maxl = num("om");
+      PREF.delta = delta; PREF.lot = lot; PREF.lots = lots; PREF.maxloss = maxl; PREF.premium = prem || undefined; savePref();
+      if (!(prem > 0 && delta > 0 && lot > 0)) { opt.innerHTML = `<div><span class="muted">Premium daalo (jis strike ka ${L ? "CE" : "PE"} lena hai uska abhi ka daam).</span></div>`; return; }
+      const atSl = Math.max(0.05, prem - delta * risk), atTp = prem + delta * reward, qty = lots * lot;
+      const loss = (prem - atSl) * qty, gain = (atTp - prem) * qty, perLot = (prem - atSl) * lot;
+      const fit = maxl > 0 ? Math.floor(maxl / perLot) : null;
+      opt.innerHTML = `<div class="s"><span>Nifty SL (${fmt(sl, 0)}) par premium ≈</span><b>₹${fmt(atSl)}</b><span>Nuksaan ≈ <b>${inr(loss, 0)}</b> (${lots} lot × ${lot})</span></div>
+        <div class="l"><span>Nifty TP (${fmt(tp, 0)}) par premium ≈</span><b>₹${fmt(atTp)}</b><span>Fayda ≈ <b>${inr(gain, 0)}</b></span></div>
+        <div><span>Lagega (premium × qty)</span><b>${inr(prem * qty, 0)}</b><span>${qty} qty</span></div>
+        <div><span>Max loss ${maxl > 0 ? inr(maxl, 0) : "–"} ke andar</span><b>${fit == null ? "–" : fit + " lot"}</b><span>${fit === 0 ? `<span class="down">1 lot ka risk bhi zyada hai (${inr(perLot, 0)})</span>` : `1 lot ka risk ≈ ${inr(perLot, 0)}`}</span></div>`;
+    } else {
+      const maxl = num("om"), acct = num("oc");
+      PREF.smax = maxl; PREF.acct = acct; savePref();
+      if (!(maxl > 0 && acct > 0)) { opt.innerHTML = ""; return; }
+      const n = Math.max(0, Math.min(Math.floor(maxl / risk), Math.floor(acct / e)));
+      opt.innerHTML = n ? `<div><span>Shares</span><b>${n.toLocaleString("en-IN")}</b><span>${L ? "Kharid" : "Bech (short)"}: ${inr(n * e, 0)}</span></div>
+        <div class="s"><span>SL par nuksaan</span><b>${inr(n * risk, 0)}</b><span>${n} × ${fmt(risk)}</span></div>
+        <div class="l"><span>TP par fayda</span><b>${inr(n * reward, 0)}</b><span>${n} × ${fmt(reward)}</span></div>`
+        : `<div class="s"><b>0 shares</b><span>SL bahut door hai: ek share ka risk bhi max loss se zyada.</span></div>`;
+    }
+  }
+  document.querySelectorAll("#pe, #ps, #pt, .opt input").forEach(i => i.addEventListener("input", update));
+  update();
 }
 
 /* ---------- routing: #INFY opens a share, empty hash shows the list */
