@@ -208,16 +208,18 @@ const OPEN = 9 * 60 + 15, CLOSE = 15 * 60 + 30;
 const HOLIDAYS = ["2026-01-15","2026-01-26","2026-03-03","2026-03-26","2026-03-31","2026-04-03","2026-04-14","2026-05-01",
   "2026-05-28","2026-06-26","2026-09-14","2026-10-02","2026-10-20","2026-11-10","2026-11-24","2026-12-25"];
 
+/* "2 Nov ko", or "aaj (15:15 tak)" when the last daily bar is today's, still live */
+const onDay = s => s.provisional ? `aaj (${s.provisional} tak)` : `${dmon(s.last_date)} ko`;
 /* daily setups: [label, side ("l", "s" or "warn"), plain explanation (s = share)] */
 const SETUPS = {
-  breakout_20d: ["20-din high toda", "l", s => `${dmon(s.last_date)} ko close ${fmt(s.last)}, jo pichhle 20 din ke sabse unche close ${fmt(s.high20)} se upar hai. Naya high bana.`],
+  breakout_20d: ["20-din high toda", "l", s => `${onDay(s)} close ${fmt(s.last)}, jo pichhle 20 din ke sabse unche close ${fmt(s.high20)} se upar hai. Naya high bana.`],
   bull_flag: ["Bull flag", "l", s => `Pehle tez chadhai (10 din mein ${s.run_pct.toFixed(1)}%), phir pichhle 5 din daam sirf ${s.range5_pct.toFixed(1)}% ke daayre mein ruka. Jhande jaisa pattern.`],
-  reclaim_ma20: ["Average ke upar wapas", "l", s => `Pichhle din daam 20-din average ke neeche tha; ${dmon(s.last_date)} ko ${fmt(s.last)} par average ${fmt(s.ma20)} ke upar band hua.`],
+  reclaim_ma20: ["Average ke upar wapas", "l", s => `Pichhle din daam 20-din average ke neeche tha; ${onDay(s)} ${fmt(s.last)} par average ${fmt(s.ma20)} ke upar band hua.`],
   oversold_bounce: ["Oversold bounce", "l", s => `Pichhle din RSI ${s.rsi_prev.toFixed(1)} (30 se neeche) tha, aur aaj close upar hua.`],
   oversold: ["Oversold", "warn", s => `RSI ${s.rsi.toFixed(1)}, 30 se neeche. Share bahut gir chuka hai: uchhal bhi sakta hai, aur bhi gir sakta hai.`],
-  breakdown_20d: ["20-din low toda", "s", s => `${dmon(s.last_date)} ko close ${fmt(s.last)}, jo pichhle 20 din ke sabse neeche close ${fmt(s.low20)} se bhi neeche hai. Naya low bana.`],
+  breakdown_20d: ["20-din low toda", "s", s => `${onDay(s)} close ${fmt(s.last)}, jo pichhle 20 din ke sabse neeche close ${fmt(s.low20)} se bhi neeche hai. Naya low bana.`],
   bear_flag: ["Bear flag", "s", s => `Pehle tez girawat (10 din mein ${s.run_pct.toFixed(1)}%), phir pichhle 5 din daam sirf ${s.range5_pct.toFixed(1)}% ke daayre mein ruka. Ulta jhanda.`],
-  lose_ma20: ["Average ke neeche gira", "s", s => `Pichhle din daam 20-din average ke upar tha; ${dmon(s.last_date)} ko ${fmt(s.last)} par average ${fmt(s.ma20)} ke neeche band hua.`],
+  lose_ma20: ["Average ke neeche gira", "s", s => `Pichhle din daam 20-din average ke upar tha; ${onDay(s)} ${fmt(s.last)} par average ${fmt(s.ma20)} ke neeche band hua.`],
   overbought_drop: ["Overbought se gira", "s", s => `Pichhle din RSI ${s.rsi_prev.toFixed(1)} (70 se upar) tha, aur aaj close neeche hua.`],
   overbought: ["Overbought", "warn", s => `RSI ${s.rsi.toFixed(1)}, 70 se upar. Share bahut chadh chuka hai: aur chadh bhi sakta hai, palat bhi sakta hai.`],
 };
@@ -350,7 +352,8 @@ function renderIndexStrip() {
   const shown = i.live ? i.live.price : i.last, ch = i.live ? i.live.change_pct : i.change_pct;
   b.innerHTML = `<div><div class="label">NIFTY 50 INDEX</div><div class="val">${fmt(shown)}</div><div class="${ch >= 0 ? "up" : "down"} mono" style="font-size:.85rem;font-weight:700">${pct(ch)} · ${i.live ? dmon(i.live.time) : dmon(i.last_date)}</div></div>
     <svg aria-hidden="true"></svg><div style="display:flex;gap:10px;align-items:center;justify-content:flex-end">${strHtml(i)}<div class="tags">${tagsHtml(i, 3)}</div><span class="chev">›</span></div>`;
-  spark(b.querySelector("svg"), i.closes.slice(-60).concat(i.live ? [i.live.price] : []), 300, 44);
+  const tail = i.closes.slice(-60);
+  spark(b.querySelector("svg"), !i.live ? tail : i.live.time.slice(0, 10) === i.last_date ? tail.slice(0, -1).concat([i.live.price]) : tail.concat([i.live.price]), 300, 44);
   b.onclick = () => { location.hash = "NIFTY"; };
 }
 function renderChips() {
@@ -431,8 +434,10 @@ function partLabel(s, k) {
 }
 function bigChart(svg, s, tipEl) {
   const W = 680, H = 270, L = 6, R = 64, T = 10, B = 24;
-  const c = s.closes, dates = s.dates.slice(), all = c.slice();
-  if (s.live) { all.push(s.live.price); dates.push(s.live.time.slice(0, 10)); }
+  // a minute price for the day the chart already ends on moves that day's point instead of adding one
+  const sameDay = !!s.live && s.live.time.slice(0, 10) === s.last_date;
+  const c = sameDay ? s.closes.slice(0, -1).concat([s.live.price]) : s.closes, dates = s.dates.slice(), all = c.slice();
+  if (s.live && !sameDay) { all.push(s.live.price); dates.push(s.live.time.slice(0, 10)); }
   const lv = (s.patterns || {}).levels || {};
   const n = all.length;
   const extra = [s.high20, s.low20].concat(lv.res ? [lv.res[0]] : [], lv.sup ? [lv.sup[0]] : []);
@@ -456,10 +461,11 @@ function bigChart(svg, s, tipEl) {
   el("line", { x1: X(c.length - 21), x2: X(c.length - 1), y1: Y(s.high20), y2: Y(s.high20), stroke: "var(--up)", "stroke-width": 1.4, "stroke-dasharray": "5 4" }, svg);
   el("line", { x1: X(c.length - 21), x2: X(c.length - 1), y1: Y(s.low20), y2: Y(s.low20), stroke: "var(--down)", "stroke-width": 1.4, "stroke-dasharray": "5 4" }, svg);
   el("polyline", { points: pts, fill: "none", stroke: "var(--accent)", "stroke-width": 2.2, "stroke-linejoin": "round" }, svg);
-  if (s.live) {
+  if (s.live && !sameDay)
     el("line", { x1: X(c.length - 1), x2: X(n - 1), y1: Y(c[c.length - 1]), y2: Y(s.live.price), stroke: "var(--accent)", "stroke-width": 2, "stroke-dasharray": "3 3" }, svg);
-    el("circle", { cx: X(n - 1), cy: Y(s.live.price), r: 4.5, fill: "var(--card)", stroke: "var(--accent)", "stroke-width": 2.5 }, svg);
-  } else el("circle", { cx: X(n - 1), cy: Y(c[c.length - 1]), r: 4, fill: "var(--accent)" }, svg);
+  if (s.live || s.provisional)   // hollow: today's price, not a settled close
+    el("circle", { cx: X(n - 1), cy: Y(all[n - 1]), r: 4.5, fill: "var(--card)", stroke: "var(--accent)", "stroke-width": 2.5 }, svg);
+  else el("circle", { cx: X(n - 1), cy: Y(c[c.length - 1]), r: 4, fill: "var(--accent)" }, svg);
   [0, Math.floor((n - 1) / 2), n - 1].forEach((i, k) => el("text", { x: X(i), y: H - 6, "text-anchor": ["start", "middle", "end"][k], "font-size": 10, fill: "var(--muted)", "font-family": "var(--mono)" }, svg).textContent = dmon(dates[i]));
   const cross = el("line", { y1: T, y2: H - B, stroke: "var(--ink)", "stroke-width": 1, opacity: 0 }, svg);
   const dot = el("circle", { r: 4, fill: "var(--ink)", opacity: 0 }, svg);
@@ -481,7 +487,8 @@ function renderDetail(s) {
   const shown = s.live ? s.live.price : s.last, ch = s.live ? s.live.change_pct : s.change_pct;
   const lv = (s.patterns || {}).levels || {};
   const other = isL() ? s.short_strength : s.strength;
-  const when = s.live ? stamp(s.live.time) + " IST (Yahoo)" : dmon(s.last_date) + " ka close" + (s.close_from_quote ? " (Yahoo quote se)" : "");
+  const when = s.live ? stamp(s.live.time) + " IST (Yahoo)" : s.provisional ? `aaj ${s.provisional} IST tak (live)` :
+    dmon(s.last_date) + " ka close" + (s.close_from_quote ? " (Yahoo quote se)" : "");
   v.innerHTML = `<div style="display:grid;gap:14px">
     <button class="back" type="button" id="back">‹ Wapas list par</button>
     <div class="dhead">
@@ -527,7 +534,7 @@ function renderDetail(s) {
             <label>Account (₹)<input id="cc" type="number" step="1000" value="50000" inputmode="decimal"></label>
           </div>
           <div class="shares" id="csh"></div><div class="out" id="cout"></div>
-          <p class="note">Entry ${s.live ? "Yahoo ka latest daam" : dmon(s.last_date) + " ka close"} hai; stop 1% ${isL() ? "neeche" : "upar"} sirf example. ${isL() ? "" : "Short mein stop entry ke upar hota hai. "}Ye hisaab hai, salah nahi.</p></div>`}
+          <p class="note">Entry ${s.live || s.provisional ? "Yahoo ka latest daam" : dmon(s.last_date) + " ka close"} hai; stop 1% ${isL() ? "neeche" : "upar"} sirf example. ${isL() ? "" : "Short mein stop entry ke upar hota hai. "}Ye hisaab hai, salah nahi.</p></div>`}
       </div>
     </div>
     ${isIdx ? `<div class="panel"><h3>Options ke liye</h3><p class="muted" style="font-size:.9rem">Index ko seedha kharida nahi ja sakta; Nifty futures ya options mein trade hota hai. Tezi ke view mein log call (CE), mandi mein put (PE) dekhte hain. Option ki keemat waqt ke saath ghatti hai, khaaskar expiry ke din, aur buyer ka poora premium doob sakta hai. Ye levels chart padhne ke liye hain, salah nahi.</p></div>` : ""}
@@ -587,8 +594,10 @@ function header() {
   const d = DATA, up = d.stocks.filter(s => s.orb).length, dn = d.stocks.filter(s => s.orb_short).length;
   const orb = d.orb_as_of === "pre-open" ? "ORB 9:35 ke baad" : ["closed", "unavailable"].includes(d.orb_as_of) ? "" : `aaj ORB ▲${up} ▼${dn} (${d.orb_as_of.slice(11)} tak)`;
   const lv = (d.index && d.index.live) || (d.stocks.find(s => s.live) || {}).live;
-  const price = lv ? `Daam: ${stamp(lv.time)} IST` : `Daam: ${dmon(d.as_of)} ka close`;
-  document.getElementById("asof").textContent = price + (orb ? " · " + orb : "") + ` · setups ${dmon(d.as_of)} ke close par` + ` · scan ${ago(d.generated_at)}`;
+  const prov = d.index && d.index.provisional;
+  const price = lv ? `Daam: ${stamp(lv.time)} IST` : prov ? `Daam: aaj ${prov} IST` : `Daam: ${dmon(d.as_of)} ka close`;
+  const setups = prov ? `setups aaj ${prov} tak (live, 3:30 par pakke honge)` : `setups ${dmon(d.as_of)} ke close par`;
+  document.getElementById("asof").textContent = price + (orb ? " · " + orb : "") + " · " + setups + ` · scan ${ago(d.generated_at)}`;
 }
 function load(first) {
   return fetch("data.json?t=" + Date.now(), { cache: "no-store" }).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }).then(d => {
@@ -605,15 +614,18 @@ function load(first) {
 // Minute prices: the workflow's `live` job writes live.json to the `live` branch every
 // minute in market hours; it is laid over data.json (only prices newer than a share's
 // last daily close count), so prices move without waiting for the 15-minute scan.
-const LIVE_URL = "https://api.github.com/repos/Bishaltureha/nifty-50-day-trader/contents/live.json?ref=live";
+const LIVE_RAW = "https://raw.githubusercontent.com/Bishaltureha/nifty-50-day-trader/live/live.json";
+const LIVE_API = "https://api.github.com/repos/Bishaltureha/nifty-50-day-trader/contents/live.json?ref=live";
 let LIVE = null;
 function applyLive() {
   if (!DATA || !LIVE) return false;
   let moved = false;
   for (const s of [DATA.index, ...DATA.stocks]) {
     const lp = s && LIVE.prices[s.sym];
-    if (!lp || lp.time.slice(0, 10) <= s.last_date || (s.live && s.live.time >= lp.time)) continue;
-    s.live = { price: lp.price, time: lp.time, change_pct: Math.round((lp.price / s.last - 1) * 10000) / 100 };
+    const base = s.live ? s.live.time : s.provisional ? s.last_date + " " + s.provisional : s.last_date;
+    if (!lp || lp.time <= base) continue;
+    const ref = s.provisional ? s.prev_close : s.last;
+    s.live = { price: lp.price, time: lp.time, change_pct: Math.round((lp.price / ref - 1) * 10000) / 100 };
     moved = true;
   }
   return moved;
@@ -624,8 +636,10 @@ function marketHours() {
 }
 function loadLive(first) {
   if (!first && !marketHours()) return;
-  fetch(LIVE_URL, { headers: { Accept: "application/vnd.github.raw+json" } })
-    .then(r => r.ok ? r.json() : null).then(l => {
+  // the raw file is behind a 5-minute cache, so each request asks for a fresh copy
+  fetch(LIVE_RAW + "?t=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.json() : Promise.reject())
+    .catch(() => fetch(LIVE_API, { headers: { Accept: "application/vnd.github.raw+json" } }).then(r => r.ok ? r.json() : null))
+    .then(l => {
       if (!l || !l.prices) return;
       LIVE = l;
       if (!applyLive()) return;

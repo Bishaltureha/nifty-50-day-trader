@@ -94,9 +94,44 @@ def fill_session_close(series, now_utc):
     return day.isoformat()
 
 
+def fill_today_live(series, now_utc):
+    """In market hours Yahoo's daily bar for today has no close yet. Use the latest quote as
+    today's close so far, so setups and patterns read today's move (they are marked as live
+    and settle at 15:30). -> "HH:MM" of the quote, or None."""
+    t, c = series.get("t") or [], series.get("c") or []
+    meta = series.get("meta") or {}
+    qt, qp = meta.get("regularMarketTime"), meta.get("regularMarketPrice")
+    now = scan.to_eastern(now_utc)
+    sess = scan.session(now.date())
+    if not t or not qt or qp is None or not sess or now >= datetime.datetime.combine(now.date(), sess[1]):
+        return None
+    quote = scan.ts_to_eastern(qt)
+    if scan.ts_to_eastern(t[-1]).date() != now.date() or quote.date() != now.date():
+        return None
+    c[-1] = qp
+    for k, mk, pick in (("h", "regularMarketDayHigh", max), ("l", "regularMarketDayLow", min)):
+        if series.get(k):
+            vals = [v for v in (series[k][-1], meta.get(mk), qp) if v is not None]
+            series[k][-1] = pick(vals)
+    if series.get("o") and series["o"][-1] is None:
+        series["o"][-1] = qp
+    return quote.strftime("%H:%M")
+
+
+def daily_clock(now_utc):
+    """The clock daily bars are read at: just after today's close while the market is open,
+    so today's bar (filled by fill_today_live) counts; otherwise the real clock."""
+    now = scan.to_eastern(now_utc)
+    sess = scan.session(now.date())
+    if sess and now < datetime.datetime.combine(now.date(), sess[1]):
+        return scan.eastern_to_utc(datetime.datetime.combine(now.date(), sess[1])) + datetime.timedelta(minutes=1)
+    return now_utc
+
+
 def item(sym, name, series, now_utc):
     filled = fill_session_close(series, now_utc)
-    bars = scan.daily_closes(series, now_utc)
+    provisional = fill_today_live(series, now_utc)
+    bars = scan.daily_closes(series, daily_clock(now_utc))
     if len(bars) < scan.MIN_DAILY_BARS:
         return None
     closes = [c for _, c in bars]
@@ -108,7 +143,7 @@ def item(sym, name, series, now_utc):
     t, p = meta.get("regularMarketTime"), meta.get("regularMarketPrice")
     if t and p is not None:
         local = scan.ts_to_eastern(t)
-        if local.date() > last_d:   # a newer price than the last complete daily bar
+        if local.date() > last_d:   # a newer price than the last daily bar
             live = {"price": r2(p), "time": local.strftime("%Y-%m-%d %H:%M"),
                     "change_pct": r2((p / last - 1) * 100)}
     tail = bars[-KEEP:]
@@ -128,7 +163,16 @@ def item(sym, name, series, now_utc):
         "high20": r2(nums["high20"]), "low20": r2(snums["low20"]), "ma20": r2(nums["ma20"]),
         "run_pct": r2(nums["run_pct"]), "range5_pct": r2(nums["range5_pct"]),
         "live": live, "close_from_quote": filled,
+        # set in market hours: the last bar is today's, its close is the price at this time
+        "provisional": provisional, "prev_close": r2(closes[-2]),
     }
+
+
+def today_move(it):
+    """Today's % move: from a newer quote, or from today's live daily bar; None if neither."""
+    if it.get("live"):
+        return it["live"]["change_pct"]
+    return it["change_pct"] if it.get("provisional") else None
 
 
 def long_strength(it):
@@ -149,9 +193,9 @@ def long_strength(it):
         parts.append((5, "rsi_neutral"))
     elif r is not None and r > 70:
         parts.append((5, "rsi_hot"))
-    live = it.get("live")
-    if live and live["change_pct"] > 0:
-        parts.append((round(min(10.0, live["change_pct"] * 4), 1), "today_up"))
+    today = today_move(it)
+    if today is not None and today > 0:
+        parts.append((round(min(10.0, today * 4), 1), "today_up"))
     parts += pattern_points(it.get("patterns") or {}, "long")
     return max(0, min(100, round(sum(p for p, _ in parts)))), [[p, k] for p, k in parts]
 
@@ -174,9 +218,9 @@ def short_strength(it):
         parts.append((5, "rsi_neutral_s"))
     elif r is not None and r < 30:
         parts.append((5, "rsi_cold"))
-    live = it.get("live")
-    if live and live["change_pct"] < 0:
-        parts.append((round(min(10.0, -live["change_pct"] * 4), 1), "today_down"))
+    today = today_move(it)
+    if today is not None and today < 0:
+        parts.append((round(min(10.0, -today * 4), 1), "today_down"))
     parts += pattern_points(it.get("patterns") or {}, "short")
     return max(0, min(100, round(sum(p for p, _ in parts)))), [[p, k] for p, k in parts]
 
@@ -482,7 +526,7 @@ def patterns_for(daily_series, m15_series, now_utc):
     "levels": nearest daily support / resistance}, on complete candles only."""
     now = scan.to_eastern(now_utc)
     out = {}
-    last_daily = {d for d, _ in scan.daily_closes(daily_series, now_utc)}
+    last_daily = {d for d, _ in scan.daily_closes(daily_series, daily_clock(now_utc))}
     d = ohlc_bars(daily_series, lambda t: t.date() in last_daily)
     if d:   # the daily 20-day high / low is already a setup, so candle_patterns leaves it out
         out["1d"] = {"at": d[-1]["t"].strftime("%Y-%m-%d"), "found": candle_patterns(d, daily=True),
