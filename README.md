@@ -9,7 +9,7 @@
 
 ## Data kaise update hota hai
 
-`.github/workflows/update-data.yml` har weekday 8:30, 16:00 aur 19:30 IST par
+`.github/workflows/update-data.yml` har weekday 8:30 se 16:15 IST tak har 15 minute, aur 19:45 IST par
 `scripts/build_data.py` chalata hai. Ye `scanner/scan.py` (trader-scanner, NSE/IST ke liye) se
 Yahoo Finance ka data laata hai aur `data.json` likhta hai. Haath se chalana ho:
 Actions tab, "Update scanner data", "Run workflow".
