@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""signals.json: B / S signals on NIFTY 50 5-minute candles, from the same rules as the
-"NIFTY Trendlines" TradingView indicator (nifty_trendlines.pine).
+"""signals.json: B / S signals on NIFTY 50 1-, 3- and 5-minute candles, from the same rules
+as the "NIFTY Trendlines" TradingView indicator (nifty_trendlines.pine). Yahoo has no
+3-minute candles, so those are built from the 1-minute ones (9:15, 9:18, ...).
 
 Rules, bar by bar, exactly in the indicator's order:
   1. Swing highs / lows: a high (low) with `LEN` lower highs (higher lows) on each side.
@@ -35,23 +36,45 @@ SHOW_DAYS = 3    # sessions written out for the chart
 OPEN_T, CLOSE_T = datetime.time(9, 15), datetime.time(15, 30)
 
 
-def bars_5m(now_ist):
-    """Finished 5-minute NSE session candles, oldest first: [(ist datetime, o, h, l, c)]."""
-    s = scan.parse_chart(scan.yahoo_get(scan.chart_path(SYM, "1mo", "5m")), SYM)
+MAX_LINES = 250  # most recent pattern lines written per timeframe
+
+
+def fetch_bars(rng, step, now_ist):
+    """Finished `step`-minute NSE session candles from Yahoo, oldest first: [(ist datetime, o, h, l, c)]."""
+    s = scan.parse_chart(scan.yahoo_get(scan.chart_path(SYM, rng, "%dm" % step)), SYM)
     out = []
     for i, ts in enumerate(s["t"]):
         o, h, l, c = s["o"][i], s["h"][i], s["l"][i], s["c"][i]
         if None in (o, h, l, c):
             continue
         t = scan.ts_to_eastern(ts)
-        if t.second or t.minute % 5 or not (OPEN_T <= t.time() < CLOSE_T):
+        if t.second or t.minute % step or not (OPEN_T <= t.time() < CLOSE_T):
             continue  # the live tick off the grid, or outside the session
-        if t + datetime.timedelta(minutes=5) > now_ist:
+        if t + datetime.timedelta(minutes=step) > now_ist:
             continue  # still forming
         if out and out[-1][0] == t:
             out[-1] = (t, o, h, l, c)
         else:
             out.append((t, o, h, l, c))
+    return out
+
+
+def group(bars1, step, now_ist):
+    """1-minute candles -> `step`-minute candles counted from 9:15. A bucket still forming is left out."""
+    out, cur = [], None
+    for t, o, h, l, c in bars1:
+        mins = (t.hour * 60 + t.minute) - (OPEN_T.hour * 60 + OPEN_T.minute)
+        start = datetime.datetime.combine(t.date(), OPEN_T) + datetime.timedelta(minutes=mins - mins % step)
+        if cur and cur[0] == start:
+            cur = [start, cur[1], max(cur[2], h), min(cur[3], l), c]
+        else:
+            if cur:
+                out.append(tuple(cur))
+            cur = [start, o, h, l, c]
+    if cur:
+        end = min(cur[0] + datetime.timedelta(minutes=step), datetime.datetime.combine(cur[0].date(), CLOSE_T))
+        if end <= now_ist:
+            out.append(tuple(cur))
     return out
 
 
@@ -190,57 +213,65 @@ def run(bars):
     return st, dr, lines, signals
 
 
+EPOCH = datetime.datetime(1970, 1, 1)
+
+
+def ts(t):
+    """IST wall-clock time as a Unix number, so a chart that shows UTC shows IST."""
+    return int((t - EPOCH).total_seconds())
+
+
+def tf_doc(bars):
+    """One timeframe's candles -> the chart's data: candles, Supertrend, pattern lines, signals."""
+    st, dr, lines, signals = run(bars)
+    days = sorted({b[0].date() for b in bars})[-SHOW_DAYS:]
+    start = next(i for i, b in enumerate(bars) if b[0].date() >= days[0])
+    r = lambda v: None if v is None else round(v, 2)
+    doc = {
+        "bars": [[ts(b[0]), r(b[1]), r(b[2]), r(b[3]), r(b[4])] for b in bars[start:]],
+        "st": [[ts(bars[i][0]), r(st[i]), dr[i]] for i in range(start, len(bars)) if st[i] is not None],
+        "lines": [], "signals": [],
+    }
+    shown = [ln for ln in lines if ln.x2 >= start][-MAX_LINES:]
+    for ln in shown:
+        x1 = max(ln.x1, start)
+        if ln.x2 <= x1:
+            continue
+        doc["lines"].append({"k": ln.kind, "t1": ts(bars[x1][0]), "y1": r(ln.at(x1)), "t2": ts(bars[ln.x2][0]),
+                             "y2": r(ln.at(ln.x2)), "tri": ln.tri})
+    for sg in signals:
+        if sg["i"] >= start:
+            doc["signals"].append({"time": ts(bars[sg["i"]][0]), "t": bars[sg["i"]][0].strftime("%Y-%m-%d %H:%M"),
+                                   "side": sg["side"], "kind": sg["kind"], "price": sg["price"]})
+    doc["trend"] = None if dr[-1] is None else ("up" if dr[-1] < 0 else "down")
+    doc["last_bar"] = bars[-1][0].strftime("%Y-%m-%d %H:%M")
+    return doc
+
+
 def main(out=os.path.join(ROOT, "signals.json")):
     now = scan.parse_now(None)
     now_ist = scan.to_eastern(now)
+    tfs = {}
     try:
-        bars = bars_5m(now_ist)
+        m1 = fetch_bars("5d", 1, now_ist)
+        scan.SLEEP(scan.PAUSE)
+        m5 = fetch_bars("1mo", 5, now_ist)
     except scan.ScanError as e:
         print("signals: %s" % e, file=sys.stderr)
         return 1
-    if len(bars) < 60:
-        print("signals: only %d candles from Yahoo, signals.json left as it was" % len(bars), file=sys.stderr)
+    for name, bars in (("1m", m1), ("3m", group(m1, 3, now_ist)), ("5m", m5)):
+        if len(bars) >= 60:
+            tfs[name] = tf_doc(bars)
+    if not tfs:
+        print("signals: too few candles from Yahoo, signals.json left as it was", file=sys.stderr)
         return 1
-    st, dr, lines, signals = run(bars)
-
-    days = sorted({b[0].date() for b in bars})[-SHOW_DAYS:]
-    start = next(i for i, b in enumerate(bars) if b[0].date() >= days[0])
-    sh = lambda i: i - start
-    r = lambda v: None if v is None else round(v, 2)
-    doc = {
-        "generated_ist": now_ist.strftime("%Y-%m-%d %H:%M"),
-        "sym": SYM, "name": "NIFTY 50", "tf": "5m",
-        "rules": {"swing": LEN, "max_age": MAX_AGE, "supertrend": [ST_ATR, ST_FACTOR], "trend_filter": TREND_FILTER},
-        "bars": [[b[0].strftime("%Y-%m-%d %H:%M"), r(b[1]), r(b[2]), r(b[3]), r(b[4])] for b in bars[start:]],
-        "st": [[r(st[i]), dr[i]] for i in range(start, len(bars))],
-        "lines": [], "signals": [],
-    }
-    tri_pairs = []
-    for ln in lines:
-        if ln.x2 < start:
-            continue
-        x1 = max(ln.x1, start)
-        doc["lines"].append({"k": ln.kind, "x1": sh(x1), "y1": r(ln.at(x1)), "x2": sh(ln.x2), "y2": r(ln.at(ln.x2)),
-                             "broken": ln.broken, "tri": ln.tri})
-        if ln.kind == "res" and getattr(ln, "tri_with", None) is not None:
-            s = ln.tri_with
-            a = max(ln.x1, s.x1, start)
-            b = min(ln.x2, s.x2)
-            if b > a:
-                tri_pairs.append({"x1": sh(a), "x2": sh(b),
-                                  "top": [r(ln.at(a)), r(ln.at(b))], "bot": [r(s.at(a)), r(s.at(b))]})
-    doc["triangles"] = tri_pairs
-    for sg in signals:
-        if sg["i"] >= start:
-            doc["signals"].append(dict(sg, i=sh(sg["i"]), t=bars[sg["i"]][0].strftime("%Y-%m-%d %H:%M")))
-    last_dir = dr[-1]
-    doc["trend"] = None if last_dir is None else ("up" if last_dir < 0 else "down")
-    doc["last_bar"] = bars[-1][0].strftime("%Y-%m-%d %H:%M")
+    doc = {"generated_ist": now_ist.strftime("%Y-%m-%d %H:%M"), "sym": SYM, "name": "NIFTY 50",
+           "rules": {"swing": LEN, "max_age": MAX_AGE, "supertrend": [ST_ATR, ST_FACTOR], "trend_filter": TREND_FILTER},
+           "tfs": tfs}
     with open(out, "w", encoding="utf-8") as fh:
         json.dump(doc, fh, separators=(",", ":"))
-    today = [s for s in doc["signals"] if s["t"].startswith(days[-1].isoformat())]
-    print("signals.json: %d candles over %d days, %d signals (%d on %s), trend %s"
-          % (len(doc["bars"]), len(days), len(doc["signals"]), len(today), days[-1], doc["trend"]))
+    print("signals.json: " + ", ".join("%s %d candles / %d signals / trend %s" % (k, len(v["bars"]), len(v["signals"]), v["trend"])
+                                       for k, v in tfs.items()))
     return 0
 
 

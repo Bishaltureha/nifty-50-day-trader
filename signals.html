@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Nifty 50 ke 5 minute chart par trendline, triangle aur swing breakout ke B / S signal, har minute apne aap update.">
+<meta name="description" content="Nifty 50 ke 1, 3 aur 5 minute chart par trendline, triangle aur swing breakout ke B / S signal, har minute apne aap update.">
 <title>Nifty B/S Signals</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600;700&display=swap">
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <style>
-/* Layout: one signal card on top, the 5-minute chart with its pattern lines, then the day's signal list. */
+/* Layout: signal card, then a full-width TradingView-style chart (zoom, scroll, crosshair), then the day's list. */
 :root {
   --paper: #F4F6F9; --card: #FFFFFF; --ink: #15213A; --muted: #5A6479; --line: #DCE1E9;
   --accent: #D9730D; --accent-soft: #FBEBD9; --up: #12804F; --up-soft: #DDF2E7;
-  --down: #C2362B; --down-soft: #F8E1DE; --band: #E9EDF3; --hover: #EEF2F8;
-  --tl: #2F62D8; --tri: rgba(47, 98, 216, .10);
+  --down: #C2362B; --down-soft: #F8E1DE; --band: #E9EDF3; --hover: #EEF2F8; --tl: #2F62D8; --tri: #8B3FD9;
   --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -23,8 +23,7 @@
 @media (prefers-color-scheme: dark) { :root {
   --paper: #0D1320; --card: #151D2D; --ink: #E7EAF1; --muted: #98A2B6; --line: #283248;
   --accent: #F2A24A; --accent-soft: #3A2A18; --up: #3FC78C; --up-soft: #15302A;
-  --down: #F06D61; --down-soft: #3A1E1E; --band: #1B2436; --hover: #1C2537;
-  --tl: #6E97FF; --tri: rgba(110, 151, 255, .12); color-scheme: dark } }
+  --down: #F06D61; --down-soft: #3A1E1E; --band: #1B2436; --hover: #1C2537; --tl: #6E97FF; --tri: #B98CFF; color-scheme: dark } }
 * { box-sizing: border-box }
 html { -webkit-text-size-adjust: 100% }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--body) }
@@ -32,16 +31,15 @@ body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 va
 a { color: var(--accent) }
 button { font: inherit; color: inherit }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
-.wrap { max-width: 1080px; margin: 0 auto; padding-block: 18px 48px;
+.wrap { max-width: 1280px; margin: 0 auto; padding-block: 18px 48px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-  display: grid; gap: 16px }
+  display: grid; gap: 14px }
 .wrap > * { min-width: 0 }
 h1, h2 { font-family: var(--display); margin: 0; line-height: 1.1; text-wrap: balance }
 h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 800; letter-spacing: -.01em }
 h2 { font-size: 1.15rem; font-weight: 800 }
 p { margin: 0 }
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums }
-.muted { color: var(--muted) }
 .note { font-size: .82rem; color: var(--muted); max-width: 80ch }
 .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px }
 .brand { display: grid; gap: 2px } .brand small { color: var(--muted); font-size: .82rem }
@@ -52,41 +50,38 @@ p { margin: 0 }
 .navlink { font-weight: 700; text-decoration: none; border: 1px solid var(--line); background: var(--card); padding: 6px 12px; border-radius: 8px; color: var(--ink) }
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 12px; min-width: 0 }
 
-/* signal card */
 .now { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: center }
 .badge { width: 64px; height: 64px; border-radius: 14px; display: grid; place-items: center; font: 800 2rem/1 var(--display) }
 .badge.B { background: var(--up-soft); color: var(--up) } .badge.S { background: var(--down-soft); color: var(--down) }
-.badge.W { background: var(--band); color: var(--muted); font-size: 1.1rem }
+.badge.W { background: var(--band); color: var(--muted); font-size: 1.05rem }
 .now .what { font: 800 1.35rem/1.15 var(--display) }
 .now .sub { color: var(--muted); font-size: .9rem }
 .trend { display: grid; gap: 2px; text-align: right }
 .trend b { font: 700 .95rem var(--mono) } .trend span { font-size: .75rem; color: var(--muted) }
 .trend.up b { color: var(--up) } .trend.down b { color: var(--down) }
-@media (max-width: 560px) { .now { grid-template-columns: auto minmax(0, 1fr) } .trend { grid-column: 1 / -1; text-align: left; grid-auto-flow: column; justify-content: start; gap: 8px; align-items: baseline } }
+@media (max-width: 560px) { .now { grid-template-columns: auto minmax(0, 1fr) } .trend { grid-column: 1 / -1; text-align: left } }
 
-/* chart */
-.chart-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between }
-.days { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden }
-.days button { border: 0; background: none; padding: 6px 12px; cursor: pointer; font: 700 .82rem var(--mono); color: var(--muted) }
-.days button + button { border-left: 1px solid var(--line) }
-.days button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent) }
-.chart-wrap { position: relative }
-svg.chart { width: 100%; display: block; touch-action: pan-y }
-svg.chart text { fill: var(--muted); font: 10.5px var(--mono) }
-.tip { font: 600 .85rem var(--mono); min-height: 1.3em; color: var(--muted) }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .78rem; color: var(--muted) }
-.legend span { display: inline-flex; gap: 6px; align-items: center }
-.legend i { width: 16px; height: 0; border-top: 2px solid var(--tl); display: inline-block }
-.legend i.dot { border-top-style: dotted } .legend i.st { border-top: 3px solid var(--up) }
-.legend i.box { height: 10px; border: 0; background: var(--tri) }
+.chartbox { padding: 0; overflow: hidden; gap: 0 }
+.bar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line) }
+.bar .sym { font: 800 1rem var(--display); margin-right: 4px }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden }
+.seg button { border: 0; background: none; padding: 5px 11px; cursor: pointer; font: 700 .82rem var(--mono); color: var(--muted) }
+.seg button + button { border-left: 1px solid var(--line) }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent) }
+.tog { border: 1px solid var(--line); background: none; border-radius: 8px; padding: 5px 10px; cursor: pointer; font: 700 .78rem var(--mono); color: var(--muted) }
+.tog[aria-pressed="true"] { color: var(--ink); border-color: var(--muted) }
+.bar .spacer { flex: 1 }
+.ohlc { font: 600 .8rem var(--mono); color: var(--muted); padding: 6px 12px; min-height: 2.2em; border-bottom: 1px solid var(--line) }
+.ohlc b { color: var(--ink); font-weight: 600 }
+#chart { height: min(72vh, 680px); min-height: 380px; width: 100% }
 
-/* list */
 table { width: 100%; border-collapse: collapse; font-size: .9rem }
 th { text-align: left; font: 700 .7rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line) }
 td { padding: 8px; border-bottom: 1px solid var(--line) }
+tr.go { cursor: pointer } tr.go:hover td { background: var(--hover) }
 .tag { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; font: 800 .8rem var(--mono) }
 .tag.B { background: var(--up-soft); color: var(--up) } .tag.S { background: var(--down-soft); color: var(--down) }
-.empty { color: var(--muted); padding: 8px 0 }
+.empty { color: var(--muted) }
 </style>
 </head>
 <body>
@@ -104,19 +99,19 @@ td { padding: 8px; border-bottom: 1px solid var(--line) }
     <div class="badge W">…</div><div><p class="what">Load ho raha hai</p></div>
   </section>
 
-  <section class="panel">
-    <div class="chart-head">
-      <h2>NIFTY 50 · 5 minute</h2>
-      <div class="days" id="days" role="group" aria-label="Din chuno"></div>
+  <section class="panel chartbox">
+    <div class="bar">
+      <span class="sym">NIFTY 50</span>
+      <div class="seg" id="tfs" role="group" aria-label="Timeframe">
+        <button type="button" data-tf="1m">1m</button><button type="button" data-tf="3m">3m</button><button type="button" data-tf="5m">5m</button>
+      </div>
+      <button type="button" class="tog" id="togLines" aria-pressed="true">Pattern lines</button>
+      <button type="button" class="tog" id="togST" aria-pressed="true">Supertrend</button>
+      <span class="spacer"></span>
+      <button type="button" class="tog" id="toNow">Aaj par jao ›</button>
     </div>
-    <div class="chart-wrap" id="wrap"><svg class="chart" id="chart" role="img" aria-label="Nifty 50 ka 5 minute chart, B aur S signal ke saath"></svg></div>
-    <p class="tip" id="tip">Chart par ungli ya mouse rakho: us candle ka daam dikhega.</p>
-    <div class="legend">
-      <span><i></i>Trendline (girti resistance, chadhta support)</span>
-      <span><i class="dot"></i>Swing high / low level</span>
-      <span><i class="box"></i>Triangle</span>
-      <span><i class="st"></i>Supertrend (hara = tezi, laal = mandi)</span>
-    </div>
+    <div class="ohlc" id="ohlc">Chart par mouse ya ungli rakho. Zoom: scroll / pinch. Peeche dekhne ke liye chart ko kheencho.</div>
+    <div id="chart"></div>
   </section>
 
   <section class="panel">
@@ -127,11 +122,11 @@ td { padding: 8px; border-bottom: 1px solid var(--line) }
     </table></div>
   </section>
 
-  <p class="note">Niyam (TradingView ke "NIFTY Trendlines" indicator jaise hi): swing size 5 candle, Supertrend 10 / 3.
+  <p class="note">Niyam (TradingView ke "NIFTY Trendlines" indicator jaise hi): swing size 5 candle, Supertrend 10 / 3, har timeframe par alag se.
     <b>B</b> = candle ka close girti trendline, triangle ya swing high ke upar, sirf jab Supertrend hara ho.
     <b>S</b> = close chadhte support, triangle ya swing low ke neeche, sirf jab Supertrend laal ho.
-    Sirf poori bani candle gini jaati hai. Data Yahoo Finance se, market ke samay har minute update.
-    <b>Financial advice nahi hai.</b> Har signal sahi nahi hota; SL hamesha lagao.</p>
+    Sirf poori bani candle gini jaati hai. 3 minute candle 1 minute se banti hai. Data Yahoo Finance se, market ke samay har minute update.
+    Purple line = triangle. <b>Financial advice nahi hai.</b> Har signal sahi nahi hota; SL hamesha lagao.</p>
 </div>
 
 <script>
@@ -139,21 +134,20 @@ const RAW = "https://raw.githubusercontent.com/Bishaltureha/nifty-50-day-trader/
 const API = "https://api.github.com/repos/Bishaltureha/nifty-50-day-trader/contents/signals.json?ref=live";
 const HOLIDAYS = ["2026-01-15","2026-01-26","2026-03-03","2026-03-26","2026-03-31","2026-04-03","2026-04-14","2026-05-01",
   "2026-05-28","2026-06-26","2026-09-14","2026-10-02","2026-10-20","2026-11-10","2026-11-24","2026-12-25"];
-let D = null, DAY = null, HOVER = null;
-
-const $ = id => document.getElementById(id);
-const NS = "http://www.w3.org/2000/svg";
-function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
-const fmt = v => v == null ? "–" : v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const dmon = d => +d.slice(8, 10) + " " + MON[+d.slice(5, 7) - 1];
 const KIND = {
   "Triangle BO": "Triangle ke upar breakout", "Trendline BO": "Girti trendline ke upar breakout", "High BO": "Swing high ke upar breakout",
   "Triangle BD": "Triangle ke neeche breakdown", "Trendline BD": "Chadhte support ke neeche breakdown", "Low BD": "Swing low ke neeche breakdown"
 };
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const $ = id => document.getElementById(id);
+const fmt = v => v == null ? "–" : v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dmon = d => +d.slice(8, 10) + " " + MON[+d.slice(5, 7) - 1];
+const store = { get(k, d) { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+let D = null, TF = store.get("tf", "5m"), SHOW_LINES = store.get("lines", "1") === "1", SHOW_ST = store.get("st", "1") === "1";
+
 function istNow() { return new Date(Date.now() + 330 * 60e3); }
-function istStr() { return istNow().toISOString().slice(0, 16).replace("T", " "); }
-function minsAgo(t) { return Math.round((Date.parse(istStr().replace(" ", "T") + "Z") - Date.parse(t.replace(" ", "T") + "Z")) / 60000); }
+function minsAgo(t) { return Math.round((istNow().getTime() - Date.parse(t.replace(" ", "T") + "Z")) / 60000); }
 function agoTxt(t) { const m = minsAgo(t); return m < 1 ? "abhi" : m < 60 ? m + " min pehle" : m < 1440 ? Math.floor(m / 60) + " ghante pehle" : Math.floor(m / 1440) + " din pehle"; }
 function marketOpen() {
   const d = istNow(), w = d.getUTCDay(), m = d.getUTCHours() * 60 + d.getUTCMinutes();
@@ -166,132 +160,124 @@ function tick() {
   $("pillText").textContent = o ? "NSE KHULA" : "NSE BAND";
 }
 
+/* ---------- chart */
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let chart, candles, stUp, stDn, lineSeries = [];
+function theme() {
+  return {
+    layout: { background: { type: "solid", color: css("--card") }, textColor: css("--muted"), fontFamily: "JetBrains Mono, monospace", fontSize: 11 },
+    grid: { vertLines: { color: css("--band") }, horzLines: { color: css("--band") } },
+    rightPriceScale: { borderColor: css("--line") }, timeScale: { borderColor: css("--line"), timeVisible: true, secondsVisible: false, rightOffset: 6 },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+  };
+}
+function makeChart() {
+  chart = LightweightCharts.createChart($("chart"), Object.assign({ autoSize: true, localization: { locale: "en-IN" } }, theme()));
+  candles = chart.addCandlestickSeries({ upColor: css("--up"), downColor: css("--down"), wickUpColor: css("--up"), wickDownColor: css("--down"), borderVisible: false });
+  const stOpt = c => ({ color: c, lineWidth: 3, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+  stUp = chart.addLineSeries(stOpt(css("--up") + "99"));
+  stDn = chart.addLineSeries(stOpt(css("--down") + "99"));
+  chart.subscribeCrosshairMove(p => {
+    const b = p.time && p.seriesData.get(candles);
+    if (!b) return;
+    const tf = D && D.tfs[TF], sg = tf && tf.signals.find(s => s.time === p.time);
+    const t = new Date(p.time * 1000).toISOString();
+    $("ohlc").innerHTML = `${dmon(t.slice(0, 10))} ${t.slice(11, 16)} · O <b>${fmt(b.open)}</b> H <b>${fmt(b.high)}</b> L <b>${fmt(b.low)}</b> C <b>${fmt(b.close)}</b>`
+      + (sg ? ` · <b style="color:var(--${sg.side === "B" ? "up" : "down"})">${sg.side} · ${sg.kind}</b>` : "");
+  });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { chart.applyOptions(theme()); drawTF(true); });
+}
+
+function drawTF(keepView) {
+  const tf = D.tfs[TF]; if (!tf) return;
+  const range = keepView ? chart.timeScale().getVisibleLogicalRange() : null;
+  candles.applyOptions({ upColor: css("--up"), downColor: css("--down"), wickUpColor: css("--up"), wickDownColor: css("--down") });
+  candles.setData(tf.bars.map(b => ({ time: b[0], open: b[1], high: b[2], low: b[3], close: b[4] })));
+  // Supertrend split into green / red runs, with a gap where it flips
+  // one series, coloured point by point; the candle where it flips is drawn clear so the jump does not show
+  const g = css("--up") + "99", r = css("--down") + "99";
+  stUp.applyOptions({ visible: SHOW_ST });
+  stUp.setData(tf.st.map(([t, v, d], k) => ({ time: t, value: v,
+    color: (k && tf.st[k - 1][2] !== d) || (k + 1 < tf.st.length && tf.st[k + 1][2] !== d) ? "rgba(0,0,0,0)" : d < 0 ? g : r })));
+  stDn.setData([]);
+  // pattern lines: one tiny two-point series each
+  lineSeries.forEach(s => chart.removeSeries(s)); lineSeries = [];
+  if (SHOW_LINES) tf.lines.forEach(L => {
+    const hz = L.k === "hzH" || L.k === "hzL";
+    const s = chart.addLineSeries({ color: L.tri ? css("--tri") : css("--tl") + (hz ? "88" : ""), lineWidth: hz ? 1 : 2,
+      lineStyle: L.k === "hzL" ? LightweightCharts.LineStyle.Dotted : LightweightCharts.LineStyle.Solid,
+      priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => null });
+    s.setData([{ time: L.t1, value: L.y1 }, { time: L.t2, value: L.y2 }]);
+    lineSeries.push(s);
+  });
+  candles.setMarkers(tf.signals.map(s => ({ time: s.time, position: s.side === "B" ? "belowBar" : "aboveBar",
+    color: s.side === "B" ? css("--up") : css("--down"), shape: s.side === "B" ? "arrowUp" : "arrowDown", text: s.side })));
+  if (range) chart.timeScale().setVisibleLogicalRange(range); else showToday();
+}
+function showToday() {
+  const tf = D.tfs[TF], n = tf.bars.length, perDay = { "1m": 375, "3m": 125, "5m": 75 }[TF];
+  chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - perDay), to: n + 5 });
+}
+
+/* ---------- card + list */
 function renderNow() {
-  const today = D.bars.length ? D.bars[D.bars.length - 1][0].slice(0, 10) : "";
-  const last = D.signals[D.signals.length - 1];
-  const trend = D.trend === "up" ? `<div class="trend up"><b>▲ Tezi</b><span>Supertrend hara: sirf B lo</span></div>`
-    : D.trend === "down" ? `<div class="trend down"><b>▼ Mandi</b><span>Supertrend laal: sirf S lo</span></div>` : "";
-  let html;
+  const tf = D.tfs[TF]; if (!tf) return;
+  const today = tf.last_bar.slice(0, 10), last = tf.signals[tf.signals.length - 1];
+  const trend = tf.trend === "up" ? `<div class="trend up"><b>▲ Tezi</b><span>Supertrend hara: sirf B lo</span></div>`
+    : tf.trend === "down" ? `<div class="trend down"><b>▼ Mandi</b><span>Supertrend laal: sirf S lo</span></div>` : "";
   if (last && last.t.startsWith(today)) {
     const B = last.side === "B";
-    html = `<div class="badge ${last.side}">${last.side}</div>
+    $("now").innerHTML = `<div class="badge ${last.side}">${last.side}</div>
       <div><p class="what">${B ? "BUY" : "SELL"} · ${fmt(last.price)}</p>
-      <p class="sub">${KIND[last.kind] || last.kind} · ${last.t.slice(11)} candle · ${agoTxt(last.t)}</p></div>${trend}`;
+      <p class="sub">${TF} · ${KIND[last.kind] || last.kind} · ${last.t.slice(11)} candle · ${agoTxt(last.t)}</p></div>${trend}`;
   } else {
-    html = `<div class="badge W">WAIT</div>
-      <div><p class="what">Aaj abhi koi signal nahi</p>
+    $("now").innerHTML = `<div class="badge W">WAIT</div>
+      <div><p class="what">${TF} par aaj abhi koi signal nahi</p>
       <p class="sub">${last ? "Pichhla: " + last.side + " " + fmt(last.price) + ", " + dmon(last.t) + " " + last.t.slice(11) : "Koi signal nahi mila"}</p></div>${trend}`;
   }
-  $("now").innerHTML = html;
-  $("asof").textContent = `Aakhri candle ${dmon(D.last_bar)} ${D.last_bar.slice(11)} IST · update ${agoTxt(D.generated_ist)}`;
+  $("asof").textContent = `Aakhri ${TF} candle ${dmon(tf.last_bar)} ${tf.last_bar.slice(11)} IST · update ${agoTxt(D.generated_ist)}`;
 }
-
-function days() { return [...new Set(D.bars.map(b => b[0].slice(0, 10)))]; }
-function renderDays() {
-  const ds = days();
-  if (!DAY || !ds.includes(DAY)) DAY = ds[ds.length - 1];
-  $("days").innerHTML = ds.map((d, k) => `<button type="button" data-d="${d}" aria-pressed="${d === DAY}">${k === ds.length - 1 ? "Aaj · " : ""}${dmon(d)}</button>`).join("");
-  $("days").querySelectorAll("button").forEach(b => b.onclick = () => { DAY = b.dataset.d; renderDays(); renderChart(); renderList(); });
-}
-
-let VIEW = null;
-function renderChart() {
-  const svg = $("chart"); svg.innerHTML = "";
-  const idx = D.bars.map((b, i) => i).filter(i => D.bars[i][0].startsWith(DAY));
-  if (!idx.length) return;
-  const i0 = idx[0], i1 = idx[idx.length - 1], n = 75;  // 75 candles in a full NSE day
-  const W = $("wrap").clientWidth, H = W < 560 ? 320 : 420, m = { l: 8, r: 58, t: 14, b: 24 };
-  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("height", H);
-  let lo = Infinity, hi = -Infinity;
-  for (let i = i0; i <= i1; i++) { lo = Math.min(lo, D.bars[i][3]); hi = Math.max(hi, D.bars[i][2]);
-    const s = D.st[i][0]; if (s != null) { lo = Math.min(lo, s); hi = Math.max(hi, s); } }
-  const pad = (hi - lo) * .08 || 10; lo -= pad; hi += pad;
-  const iw = W - m.l - m.r, ih = H - m.t - m.b, cw = iw / n;
-  const x = i => m.l + (i - i0 + .5) * cw, y = v => m.t + (hi - v) / (hi - lo) * ih;
-  // grid + price labels
-  const step = [5, 10, 20, 25, 50, 100, 200, 250, 500].find(s => (hi - lo) / s <= 6) || 1000;
-  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
-    el("line", { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: "var(--line)", "stroke-width": 1 }, svg);
-    el("text", { x: W - m.r + 6, y: y(v) + 3.5 }, svg).textContent = v.toLocaleString("en-IN");
-  }
-  ["09:15", "10:30", "11:30", "12:30", "13:30", "14:30", "15:25"].forEach(t => {
-    const i = idx.find(k => D.bars[k][0].slice(11) >= t); if (i == null) return;
-    el("text", { x: x(i), y: H - 7, "text-anchor": "middle" }, svg).textContent = D.bars[i][0].slice(11);
-  });
-  // triangles
-  D.triangles.forEach(tr => {
-    const a = Math.max(tr.x1, i0), b = Math.min(tr.x2, i1); if (b <= a) return;
-    const f = (p, k) => p[0] + (p[1] - p[0]) * (k - tr.x1) / ((tr.x2 - tr.x1) || 1);
-    el("polygon", { points: `${x(a)},${y(f(tr.top, a))} ${x(b)},${y(f(tr.top, b))} ${x(b)},${y(f(tr.bot, b))} ${x(a)},${y(f(tr.bot, a))}`, fill: "var(--tri)" }, svg);
-  });
-  // pattern lines
-  D.lines.forEach(L => {
-    const a = Math.max(L.x1, i0), b = Math.min(L.x2, i1); if (b < a) return;
-    const f = k => L.x2 === L.x1 ? L.y1 : L.y1 + (L.y2 - L.y1) * (k - L.x1) / (L.x2 - L.x1);
-    const hz = L.k === "hzH" || L.k === "hzL";
-    el("line", { x1: x(a) - (a === L.x1 ? 0 : cw / 2), y1: y(f(a)), x2: x(b), y2: y(f(b)), stroke: "var(--tl)",
-      "stroke-width": hz ? 1.2 : 2, "stroke-dasharray": L.k === "hzL" ? "2 3" : "", opacity: hz ? .55 : .9, "stroke-linecap": "round" }, svg);
-  });
-  // supertrend
-  let seg = [], segDir = null;
-  const flush = () => { if (seg.length > 1) el("polyline", { points: seg.join(" "), fill: "none", stroke: segDir < 0 ? "var(--up)" : "var(--down)", "stroke-width": 3, opacity: .55, "stroke-linejoin": "round" }, svg); seg = []; };
-  for (let i = i0; i <= i1; i++) {
-    const [v, d] = D.st[i]; if (v == null) { flush(); continue; }
-    if (d !== segDir) { flush(); segDir = d; }
-    seg.push(x(i).toFixed(1) + "," + y(v).toFixed(1));
-  }
-  flush();
-  // candles
-  const bw = Math.max(1.5, cw * .62);
-  for (let i = i0; i <= i1; i++) {
-    const [, o, h, l, c] = D.bars[i], up = c >= o, col = up ? "var(--up)" : "var(--down)";
-    el("line", { x1: x(i), x2: x(i), y1: y(h), y2: y(l), stroke: col, "stroke-width": 1 }, svg);
-    el("rect", { x: x(i) - bw / 2, y: y(Math.max(o, c)), width: bw, height: Math.max(1, Math.abs(y(o) - y(c))), fill: col, rx: 1 }, svg);
-  }
-  // B / S tags
-  D.signals.filter(s => s.i >= i0 && s.i <= i1).forEach(s => {
-    const B = s.side === "B", [, , h, l] = D.bars[s.i], cy = B ? y(l) + 14 : y(h) - 14;
-    const g = el("g", {}, svg);
-    el("rect", { x: x(s.i) - 8, y: cy - 8, width: 16, height: 16, rx: 4, fill: B ? "var(--up)" : "var(--down)" }, g);
-    const t = el("text", { x: x(s.i), y: cy + 4, "text-anchor": "middle", style: "fill:#fff;font:700 10.5px var(--mono)" }, g); t.textContent = s.side;
-    el("title", {}, g).textContent = (B ? "BUY " : "SELL ") + fmt(s.price) + " · " + s.kind + " · " + s.t.slice(11);
-  });
-  const hl = el("line", { y1: m.t, y2: H - m.b, stroke: "var(--muted)", "stroke-width": 1, opacity: 0 }, svg);
-  VIEW = { i0, i1, x, cw, m, W, hl };
-}
-
-function hover(ev) {
-  if (!VIEW) return;
-  const r = $("chart").getBoundingClientRect(), px = (ev.clientX - r.left) * VIEW.W / r.width;
-  const i = Math.round((px - VIEW.m.l) / VIEW.cw - .5) + VIEW.i0;
-  if (i < VIEW.i0 || i > VIEW.i1) return;
-  const [t, o, h, l, c] = D.bars[i];
-  VIEW.hl.setAttribute("x1", VIEW.x(i)); VIEW.hl.setAttribute("x2", VIEW.x(i)); VIEW.hl.setAttribute("opacity", .5);
-  const sg = D.signals.find(s => s.i === i);
-  $("tip").innerHTML = `${t.slice(11)} · O ${fmt(o)} H ${fmt(h)} L ${fmt(l)} C ${fmt(c)}` + (sg ? ` · <b style="color:var(--${sg.side === "B" ? "up" : "down"})">${sg.side} ${sg.kind}</b>` : "");
-}
-
 function renderList() {
-  const ds = days(), isToday = DAY === ds[ds.length - 1];
-  $("listTitle").textContent = isToday ? "Aaj ke signal" : dmon(DAY) + " ke signal";
-  const list = D.signals.filter(s => s.t.startsWith(DAY)).reverse();
-  $("rows").innerHTML = list.length ? list.map(s => `<tr><td><span class="tag ${s.side}">${s.side}</span></td>
+  const tf = D.tfs[TF], day = tf.last_bar.slice(0, 10);
+  $("listTitle").textContent = `${dmon(day)} ke ${TF} signal`;
+  const list = tf.signals.filter(s => s.t.startsWith(day)).reverse();
+  $("rows").innerHTML = list.length ? list.map(s => `<tr class="go" data-t="${s.time}"><td><span class="tag ${s.side}">${s.side}</span></td>
     <td class="mono">${s.t.slice(11)}</td><td class="mono">${fmt(s.price)}</td><td>${KIND[s.kind] || s.kind}</td></tr>`).join("")
-    : `<tr><td colspan="4" class="empty">Is din koi B / S signal nahi.</td></tr>`;
+    : `<tr><td colspan="4" class="empty">Is din ${TF} par koi B / S signal nahi.</td></tr>`;
+  $("rows").querySelectorAll("tr.go").forEach(r => r.onclick = () => {
+    const i = tf.bars.findIndex(b => b[0] === +r.dataset.t);
+    chart.timeScale().setVisibleLogicalRange({ from: i - 40, to: i + 40 });
+    $("chart").scrollIntoView({ behavior: "smooth", block: "center" });
+  });
 }
+function renderTFButtons() {
+  if (!D.tfs[TF]) TF = Object.keys(D.tfs).pop();
+  $("tfs").querySelectorAll("button").forEach(b => { b.setAttribute("aria-pressed", b.dataset.tf === TF); b.disabled = !D.tfs[b.dataset.tf]; });
+  $("togLines").setAttribute("aria-pressed", SHOW_LINES); $("togST").setAttribute("aria-pressed", SHOW_ST);
+}
+function renderAll(keepView) { renderTFButtons(); drawTF(keepView); renderNow(); renderList(); }
 
-function render() { renderNow(); renderDays(); renderChart(); renderList(); }
+/* ---------- data */
+// each source must hold the new 1m / 3m / 5m format, or the next one is tried
+const get = (url, opt) => fetch(url, opt).then(r => r.ok ? r.json() : Promise.reject()).then(d => d && d.tfs ? d : Promise.reject());
 function load() {
-  return fetch(RAW + "?t=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.json() : Promise.reject())
-    .catch(() => fetch(API, { headers: { Accept: "application/vnd.github.raw+json" } }).then(r => r.ok ? r.json() : Promise.reject()))
-    .catch(() => fetch("signals.json?t=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.json() : Promise.reject()))
-    .then(d => { if (!d || !d.bars) return; const fresh = !D || d.generated_ist !== D.generated_ist; D = d; if (fresh) render(); else renderNow(); })
+  return get(RAW + "?t=" + Date.now(), { cache: "no-store" })
+    .catch(() => get(API, { headers: { Accept: "application/vnd.github.raw+json" } }))
+    .catch(() => get("signals.json?t=" + Date.now(), { cache: "no-store" }))
+    .then(d => {
+      const first = !D, fresh = first || d.generated_ist !== D.generated_ist;
+      D = d;
+      if (fresh) renderAll(!first); else renderNow();
+    })
     .catch(() => { if (!D) $("now").innerHTML = `<div class="badge W">!</div><div><p class="what">Signal load nahi hue</p><p class="sub">Internet check karo, ek minute baad page apne aap phir koshish karega.</p></div>`; });
 }
 
-$("chart").addEventListener("pointermove", hover);
-let rw = 0;
-new ResizeObserver(() => { const w = $("wrap").clientWidth; if (D && w !== rw) { rw = w; renderChart(); } }).observe($("wrap"));
+$("tfs").querySelectorAll("button").forEach(b => b.onclick = () => { TF = b.dataset.tf; store.set("tf", TF); renderAll(false); });
+$("togLines").onclick = () => { SHOW_LINES = !SHOW_LINES; store.set("lines", SHOW_LINES ? "1" : "0"); renderTFButtons(); drawTF(true); };
+$("togST").onclick = () => { SHOW_ST = !SHOW_ST; store.set("st", SHOW_ST ? "1" : "0"); renderTFButtons(); drawTF(true); };
+$("toNow").onclick = () => D && showToday();
+
+makeChart();
 tick(); setInterval(tick, 15000);
 load(); setInterval(() => { if (marketOpen() || !D) load(); }, 60e3);
 </script>
