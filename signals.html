@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Nifty 50 ke 5 minute chart par trendline, triangle aur swing breakout ke B / S signal, har minute apne aap update.">
+<title>Nifty B/S Signals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600;700&display=swap">
+<style>
+/* Layout: one signal card on top, the 5-minute chart with its pattern lines, then the day's signal list. */
+:root {
+  --paper: #F4F6F9; --card: #FFFFFF; --ink: #15213A; --muted: #5A6479; --line: #DCE1E9;
+  --accent: #D9730D; --accent-soft: #FBEBD9; --up: #12804F; --up-soft: #DDF2E7;
+  --down: #C2362B; --down-soft: #F8E1DE; --band: #E9EDF3; --hover: #EEF2F8;
+  --tl: #2F62D8; --tri: rgba(47, 98, 216, .10);
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --paper: #0D1320; --card: #151D2D; --ink: #E7EAF1; --muted: #98A2B6; --line: #283248;
+  --accent: #F2A24A; --accent-soft: #3A2A18; --up: #3FC78C; --up-soft: #15302A;
+  --down: #F06D61; --down-soft: #3A1E1E; --band: #1B2436; --hover: #1C2537;
+  --tl: #6E97FF; --tri: rgba(110, 151, 255, .12); color-scheme: dark } }
+* { box-sizing: border-box }
+html { -webkit-text-size-adjust: 100% }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--body) }
+[hidden] { display: none !important }
+a { color: var(--accent) }
+button { font: inherit; color: inherit }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 18px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 16px }
+.wrap > * { min-width: 0 }
+h1, h2 { font-family: var(--display); margin: 0; line-height: 1.1; text-wrap: balance }
+h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 800; letter-spacing: -.01em }
+h2 { font-size: 1.15rem; font-weight: 800 }
+p { margin: 0 }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums }
+.muted { color: var(--muted) }
+.note { font-size: .82rem; color: var(--muted); max-width: 80ch }
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px }
+.brand { display: grid; gap: 2px } .brand small { color: var(--muted); font-size: .82rem }
+.status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: .85rem }
+.pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 999px; font: 700 .76rem/1 var(--mono); letter-spacing: .04em }
+.pill i { width: 8px; height: 8px; border-radius: 50%; background: currentColor }
+.pill.open { background: var(--up-soft); color: var(--up) } .pill.closed { background: var(--down-soft); color: var(--down) }
+.navlink { font-weight: 700; text-decoration: none; border: 1px solid var(--line); background: var(--card); padding: 6px 12px; border-radius: 8px; color: var(--ink) }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 12px; min-width: 0 }
+
+/* signal card */
+.now { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: center }
+.badge { width: 64px; height: 64px; border-radius: 14px; display: grid; place-items: center; font: 800 2rem/1 var(--display) }
+.badge.B { background: var(--up-soft); color: var(--up) } .badge.S { background: var(--down-soft); color: var(--down) }
+.badge.W { background: var(--band); color: var(--muted); font-size: 1.1rem }
+.now .what { font: 800 1.35rem/1.15 var(--display) }
+.now .sub { color: var(--muted); font-size: .9rem }
+.trend { display: grid; gap: 2px; text-align: right }
+.trend b { font: 700 .95rem var(--mono) } .trend span { font-size: .75rem; color: var(--muted) }
+.trend.up b { color: var(--up) } .trend.down b { color: var(--down) }
+@media (max-width: 560px) { .now { grid-template-columns: auto minmax(0, 1fr) } .trend { grid-column: 1 / -1; text-align: left; grid-auto-flow: column; justify-content: start; gap: 8px; align-items: baseline } }
+
+/* chart */
+.chart-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between }
+.days { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden }
+.days button { border: 0; background: none; padding: 6px 12px; cursor: pointer; font: 700 .82rem var(--mono); color: var(--muted) }
+.days button + button { border-left: 1px solid var(--line) }
+.days button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent) }
+.chart-wrap { position: relative }
+svg.chart { width: 100%; display: block; touch-action: pan-y }
+svg.chart text { fill: var(--muted); font: 10.5px var(--mono) }
+.tip { font: 600 .85rem var(--mono); min-height: 1.3em; color: var(--muted) }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .78rem; color: var(--muted) }
+.legend span { display: inline-flex; gap: 6px; align-items: center }
+.legend i { width: 16px; height: 0; border-top: 2px solid var(--tl); display: inline-block }
+.legend i.dot { border-top-style: dotted } .legend i.st { border-top: 3px solid var(--up) }
+.legend i.box { height: 10px; border: 0; background: var(--tri) }
+
+/* list */
+table { width: 100%; border-collapse: collapse; font-size: .9rem }
+th { text-align: left; font: 700 .7rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line) }
+td { padding: 8px; border-bottom: 1px solid var(--line) }
+.tag { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; font: 800 .8rem var(--mono) }
+.tag.B { background: var(--up-soft); color: var(--up) } .tag.S { background: var(--down-soft); color: var(--down) }
+.empty { color: var(--muted); padding: 8px 0 }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><h1>Nifty B/S Signals</h1><small id="asof">Signal load ho rahe hain…</small></div>
+    <div class="status">
+      <span id="pill" class="pill closed"><i></i><span id="pillText">NSE</span></span>
+      <span id="clock" class="mono">--:-- IST</span>
+      <a class="navlink" href="./">‹ Scanner</a>
+    </div>
+  </header>
+
+  <section class="panel now" id="now" aria-live="polite">
+    <div class="badge W">…</div><div><p class="what">Load ho raha hai</p></div>
+  </section>
+
+  <section class="panel">
+    <div class="chart-head">
+      <h2>NIFTY 50 · 5 minute</h2>
+      <div class="days" id="days" role="group" aria-label="Din chuno"></div>
+    </div>
+    <div class="chart-wrap" id="wrap"><svg class="chart" id="chart" role="img" aria-label="Nifty 50 ka 5 minute chart, B aur S signal ke saath"></svg></div>
+    <p class="tip" id="tip">Chart par ungli ya mouse rakho: us candle ka daam dikhega.</p>
+    <div class="legend">
+      <span><i></i>Trendline (girti resistance, chadhta support)</span>
+      <span><i class="dot"></i>Swing high / low level</span>
+      <span><i class="box"></i>Triangle</span>
+      <span><i class="st"></i>Supertrend (hara = tezi, laal = mandi)</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2 id="listTitle">Aaj ke signal</h2>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th></th><th>Samay</th><th>Daam</th><th>Kyun</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+  </section>
+
+  <p class="note">Niyam (TradingView ke "NIFTY Trendlines" indicator jaise hi): swing size 5 candle, Supertrend 10 / 3.
+    <b>B</b> = candle ka close girti trendline, triangle ya swing high ke upar, sirf jab Supertrend hara ho.
+    <b>S</b> = close chadhte support, triangle ya swing low ke neeche, sirf jab Supertrend laal ho.
+    Sirf poori bani candle gini jaati hai. Data Yahoo Finance se, market ke samay har minute update.
+    <b>Financial advice nahi hai.</b> Har signal sahi nahi hota; SL hamesha lagao.</p>
+</div>
+
+<script>
+const RAW = "https://raw.githubusercontent.com/Bishaltureha/nifty-50-day-trader/live/signals.json";
+const API = "https://api.github.com/repos/Bishaltureha/nifty-50-day-trader/contents/signals.json?ref=live";
+const HOLIDAYS = ["2026-01-15","2026-01-26","2026-03-03","2026-03-26","2026-03-31","2026-04-03","2026-04-14","2026-05-01",
+  "2026-05-28","2026-06-26","2026-09-14","2026-10-02","2026-10-20","2026-11-10","2026-11-24","2026-12-25"];
+let D = null, DAY = null, HOVER = null;
+
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+const fmt = v => v == null ? "–" : v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const dmon = d => +d.slice(8, 10) + " " + MON[+d.slice(5, 7) - 1];
+const KIND = {
+  "Triangle BO": "Triangle ke upar breakout", "Trendline BO": "Girti trendline ke upar breakout", "High BO": "Swing high ke upar breakout",
+  "Triangle BD": "Triangle ke neeche breakdown", "Trendline BD": "Chadhte support ke neeche breakdown", "Low BD": "Swing low ke neeche breakdown"
+};
+function istNow() { return new Date(Date.now() + 330 * 60e3); }
+function istStr() { return istNow().toISOString().slice(0, 16).replace("T", " "); }
+function minsAgo(t) { return Math.round((Date.parse(istStr().replace(" ", "T") + "Z") - Date.parse(t.replace(" ", "T") + "Z")) / 60000); }
+function agoTxt(t) { const m = minsAgo(t); return m < 1 ? "abhi" : m < 60 ? m + " min pehle" : m < 1440 ? Math.floor(m / 60) + " ghante pehle" : Math.floor(m / 1440) + " din pehle"; }
+function marketOpen() {
+  const d = istNow(), w = d.getUTCDay(), m = d.getUTCHours() * 60 + d.getUTCMinutes();
+  return w > 0 && w < 6 && !HOLIDAYS.includes(d.toISOString().slice(0, 10)) && m >= 555 && m < 930;
+}
+function tick() {
+  $("clock").textContent = istNow().toISOString().slice(11, 16) + " IST";
+  const o = marketOpen();
+  $("pill").className = "pill " + (o ? "open" : "closed");
+  $("pillText").textContent = o ? "NSE KHULA" : "NSE BAND";
+}
+
+function renderNow() {
+  const today = D.bars.length ? D.bars[D.bars.length - 1][0].slice(0, 10) : "";
+  const last = D.signals[D.signals.length - 1];
+  const trend = D.trend === "up" ? `<div class="trend up"><b>▲ Tezi</b><span>Supertrend hara: sirf B lo</span></div>`
+    : D.trend === "down" ? `<div class="trend down"><b>▼ Mandi</b><span>Supertrend laal: sirf S lo</span></div>` : "";
+  let html;
+  if (last && last.t.startsWith(today)) {
+    const B = last.side === "B";
+    html = `<div class="badge ${last.side}">${last.side}</div>
+      <div><p class="what">${B ? "BUY" : "SELL"} · ${fmt(last.price)}</p>
+      <p class="sub">${KIND[last.kind] || last.kind} · ${last.t.slice(11)} candle · ${agoTxt(last.t)}</p></div>${trend}`;
+  } else {
+    html = `<div class="badge W">WAIT</div>
+      <div><p class="what">Aaj abhi koi signal nahi</p>
+      <p class="sub">${last ? "Pichhla: " + last.side + " " + fmt(last.price) + ", " + dmon(last.t) + " " + last.t.slice(11) : "Koi signal nahi mila"}</p></div>${trend}`;
+  }
+  $("now").innerHTML = html;
+  $("asof").textContent = `Aakhri candle ${dmon(D.last_bar)} ${D.last_bar.slice(11)} IST · update ${agoTxt(D.generated_ist)}`;
+}
+
+function days() { return [...new Set(D.bars.map(b => b[0].slice(0, 10)))]; }
+function renderDays() {
+  const ds = days();
+  if (!DAY || !ds.includes(DAY)) DAY = ds[ds.length - 1];
+  $("days").innerHTML = ds.map((d, k) => `<button type="button" data-d="${d}" aria-pressed="${d === DAY}">${k === ds.length - 1 ? "Aaj · " : ""}${dmon(d)}</button>`).join("");
+  $("days").querySelectorAll("button").forEach(b => b.onclick = () => { DAY = b.dataset.d; renderDays(); renderChart(); renderList(); });
+}
+
+let VIEW = null;
+function renderChart() {
+  const svg = $("chart"); svg.innerHTML = "";
+  const idx = D.bars.map((b, i) => i).filter(i => D.bars[i][0].startsWith(DAY));
+  if (!idx.length) return;
+  const i0 = idx[0], i1 = idx[idx.length - 1], n = 75;  // 75 candles in a full NSE day
+  const W = $("wrap").clientWidth, H = W < 560 ? 320 : 420, m = { l: 8, r: 58, t: 14, b: 24 };
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("height", H);
+  let lo = Infinity, hi = -Infinity;
+  for (let i = i0; i <= i1; i++) { lo = Math.min(lo, D.bars[i][3]); hi = Math.max(hi, D.bars[i][2]);
+    const s = D.st[i][0]; if (s != null) { lo = Math.min(lo, s); hi = Math.max(hi, s); } }
+  const pad = (hi - lo) * .08 || 10; lo -= pad; hi += pad;
+  const iw = W - m.l - m.r, ih = H - m.t - m.b, cw = iw / n;
+  const x = i => m.l + (i - i0 + .5) * cw, y = v => m.t + (hi - v) / (hi - lo) * ih;
+  // grid + price labels
+  const step = [5, 10, 20, 25, 50, 100, 200, 250, 500].find(s => (hi - lo) / s <= 6) || 1000;
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
+    el("line", { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: "var(--line)", "stroke-width": 1 }, svg);
+    el("text", { x: W - m.r + 6, y: y(v) + 3.5 }, svg).textContent = v.toLocaleString("en-IN");
+  }
+  ["09:15", "10:30", "11:30", "12:30", "13:30", "14:30", "15:25"].forEach(t => {
+    const i = idx.find(k => D.bars[k][0].slice(11) >= t); if (i == null) return;
+    el("text", { x: x(i), y: H - 7, "text-anchor": "middle" }, svg).textContent = D.bars[i][0].slice(11);
+  });
+  // triangles
+  D.triangles.forEach(tr => {
+    const a = Math.max(tr.x1, i0), b = Math.min(tr.x2, i1); if (b <= a) return;
+    const f = (p, k) => p[0] + (p[1] - p[0]) * (k - tr.x1) / ((tr.x2 - tr.x1) || 1);
+    el("polygon", { points: `${x(a)},${y(f(tr.top, a))} ${x(b)},${y(f(tr.top, b))} ${x(b)},${y(f(tr.bot, b))} ${x(a)},${y(f(tr.bot, a))}`, fill: "var(--tri)" }, svg);
+  });
+  // pattern lines
+  D.lines.forEach(L => {
+    const a = Math.max(L.x1, i0), b = Math.min(L.x2, i1); if (b < a) return;
+    const f = k => L.x2 === L.x1 ? L.y1 : L.y1 + (L.y2 - L.y1) * (k - L.x1) / (L.x2 - L.x1);
+    const hz = L.k === "hzH" || L.k === "hzL";
+    el("line", { x1: x(a) - (a === L.x1 ? 0 : cw / 2), y1: y(f(a)), x2: x(b), y2: y(f(b)), stroke: "var(--tl)",
+      "stroke-width": hz ? 1.2 : 2, "stroke-dasharray": L.k === "hzL" ? "2 3" : "", opacity: hz ? .55 : .9, "stroke-linecap": "round" }, svg);
+  });
+  // supertrend
+  let seg = [], segDir = null;
+  const flush = () => { if (seg.length > 1) el("polyline", { points: seg.join(" "), fill: "none", stroke: segDir < 0 ? "var(--up)" : "var(--down)", "stroke-width": 3, opacity: .55, "stroke-linejoin": "round" }, svg); seg = []; };
+  for (let i = i0; i <= i1; i++) {
+    const [v, d] = D.st[i]; if (v == null) { flush(); continue; }
+    if (d !== segDir) { flush(); segDir = d; }
+    seg.push(x(i).toFixed(1) + "," + y(v).toFixed(1));
+  }
+  flush();
+  // candles
+  const bw = Math.max(1.5, cw * .62);
+  for (let i = i0; i <= i1; i++) {
+    const [, o, h, l, c] = D.bars[i], up = c >= o, col = up ? "var(--up)" : "var(--down)";
+    el("line", { x1: x(i), x2: x(i), y1: y(h), y2: y(l), stroke: col, "stroke-width": 1 }, svg);
+    el("rect", { x: x(i) - bw / 2, y: y(Math.max(o, c)), width: bw, height: Math.max(1, Math.abs(y(o) - y(c))), fill: col, rx: 1 }, svg);
+  }
+  // B / S tags
+  D.signals.filter(s => s.i >= i0 && s.i <= i1).forEach(s => {
+    const B = s.side === "B", [, , h, l] = D.bars[s.i], cy = B ? y(l) + 14 : y(h) - 14;
+    const g = el("g", {}, svg);
+    el("rect", { x: x(s.i) - 8, y: cy - 8, width: 16, height: 16, rx: 4, fill: B ? "var(--up)" : "var(--down)" }, g);
+    const t = el("text", { x: x(s.i), y: cy + 4, "text-anchor": "middle", style: "fill:#fff;font:700 10.5px var(--mono)" }, g); t.textContent = s.side;
+    el("title", {}, g).textContent = (B ? "BUY " : "SELL ") + fmt(s.price) + " · " + s.kind + " · " + s.t.slice(11);
+  });
+  const hl = el("line", { y1: m.t, y2: H - m.b, stroke: "var(--muted)", "stroke-width": 1, opacity: 0 }, svg);
+  VIEW = { i0, i1, x, cw, m, W, hl };
+}
+
+function hover(ev) {
+  if (!VIEW) return;
+  const r = $("chart").getBoundingClientRect(), px = (ev.clientX - r.left) * VIEW.W / r.width;
+  const i = Math.round((px - VIEW.m.l) / VIEW.cw - .5) + VIEW.i0;
+  if (i < VIEW.i0 || i > VIEW.i1) return;
+  const [t, o, h, l, c] = D.bars[i];
+  VIEW.hl.setAttribute("x1", VIEW.x(i)); VIEW.hl.setAttribute("x2", VIEW.x(i)); VIEW.hl.setAttribute("opacity", .5);
+  const sg = D.signals.find(s => s.i === i);
+  $("tip").innerHTML = `${t.slice(11)} · O ${fmt(o)} H ${fmt(h)} L ${fmt(l)} C ${fmt(c)}` + (sg ? ` · <b style="color:var(--${sg.side === "B" ? "up" : "down"})">${sg.side} ${sg.kind}</b>` : "");
+}
+
+function renderList() {
+  const ds = days(), isToday = DAY === ds[ds.length - 1];
+  $("listTitle").textContent = isToday ? "Aaj ke signal" : dmon(DAY) + " ke signal";
+  const list = D.signals.filter(s => s.t.startsWith(DAY)).reverse();
+  $("rows").innerHTML = list.length ? list.map(s => `<tr><td><span class="tag ${s.side}">${s.side}</span></td>
+    <td class="mono">${s.t.slice(11)}</td><td class="mono">${fmt(s.price)}</td><td>${KIND[s.kind] || s.kind}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="empty">Is din koi B / S signal nahi.</td></tr>`;
+}
+
+function render() { renderNow(); renderDays(); renderChart(); renderList(); }
+function load() {
+  return fetch(RAW + "?t=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.json() : Promise.reject())
+    .catch(() => fetch(API, { headers: { Accept: "application/vnd.github.raw+json" } }).then(r => r.ok ? r.json() : Promise.reject()))
+    .catch(() => fetch("signals.json?t=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.json() : Promise.reject()))
+    .then(d => { if (!d || !d.bars) return; const fresh = !D || d.generated_ist !== D.generated_ist; D = d; if (fresh) render(); else renderNow(); })
+    .catch(() => { if (!D) $("now").innerHTML = `<div class="badge W">!</div><div><p class="what">Signal load nahi hue</p><p class="sub">Internet check karo, ek minute baad page apne aap phir koshish karega.</p></div>`; });
+}
+
+$("chart").addEventListener("pointermove", hover);
+let rw = 0;
+new ResizeObserver(() => { const w = $("wrap").clientWidth; if (D && w !== rw) { rw = w; renderChart(); } }).observe($("wrap"));
+tick(); setInterval(tick, 15000);
+load(); setInterval(() => { if (marketOpen() || !D) load(); }, 60e3);
+</script>
+</body>
+</html>

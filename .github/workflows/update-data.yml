@@ -46,10 +46,11 @@ jobs:
               echo "== $(TZ=Asia/Kolkata date '+%F %H:%M') IST: building"
               git pull -q --rebase || git rebase --abort || true
               if python3 scripts/build_data.py; then
-                if git diff --quiet -- data.json; then
+                python3 scripts/build_signals.py || echo "signals build failed, keeping the last signals.json"
+                if git diff --quiet -- data.json signals.json; then
                   echo "data.json unchanged"
                 else
-                  git add data.json
+                  git add data.json signals.json
                   git commit -q -m "Update scanner data"
                   git push -q || { git pull -q --rebase -X theirs && git push -q; } || echo "push failed, next round"
                 fi
@@ -92,10 +93,13 @@ jobs:
             if [[ $dow -le 5 && $hm -ge 914 && $hm -le 1535 ]]; then
               rm -rf "$out" && mkdir -p "$out"
               if python3 scripts/build_live.py "$out/live.json"; then
+                # B / S signals on Nifty 5-minute candles ride along with the live prices
+                python3 scripts/build_signals.py "$out/signals.json" || echo "signals build failed this minute"
                 (cd "$out" && git init -q -b live \
                   && git config user.name "github-actions[bot]" \
                   && git config user.email "41898282+github-actions[bot]@users.noreply.github.com" \
-                  && git add live.json && git commit -q -m "Live prices" \
+                  && git add live.json && { [ ! -f signals.json ] || git add signals.json; } \
+                  && git commit -q -m "Live prices" \
                   && git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" live) \
                   || echo "push failed, next minute"
               fi
